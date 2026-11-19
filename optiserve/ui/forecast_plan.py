@@ -75,6 +75,12 @@ def servers_chart(sr: ServiceResult) -> go.Figure:
     return _layout(fig, 280, "Servers")
 
 
+def _range(rec: dict) -> str:
+    """Format the planned server range, collapsing it when min equals max."""
+    lo, hi = rec["planned_min"], rec["planned_max"]
+    return str(lo) if lo == hi else f"{lo}–{hi}"
+
+
 def recommendation_card(sr: ServiceResult) -> str:
     """Return HTML for the recommendation card."""
     rec = sr.recommendation
@@ -85,7 +91,7 @@ def recommendation_card(sr: ServiceResult) -> str:
     return (
         f'<div class="os-card"><h4>Recommendation {badge}</h4>'
         f'<p>Current: <b>{rec["current"]}</b> servers fixed<br>'
-        f'Planned: <b>{rec["planned_min"]}–{rec["planned_max"]}</b> servers (avg {rec["planned_avg"]:.1f})</p>'
+        f'Planned: <b>{_range(rec)}</b> servers (avg {rec["planned_avg"]:.1f})</p>'
         f'<div class="value" style="font-size:1.6rem;font-weight:700;color:{color};margin-top:.5rem">'
         f'{money(abs(savings))}/month</div>'
         f'<p style="color:#94a3b8">{verb} · {abs(rec["savings_pct"]):.1f}% vs '
