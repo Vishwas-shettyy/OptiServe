@@ -84,3 +84,45 @@ def test_deterministic(key: str) -> None:
     pd.testing.assert_frame_equal(a.servers, b.servers)
     pd.testing.assert_frame_equal(a.events, b.events)
     assert a.current_servers == b.current_servers
+
+
+from engine.profiler import PROFILE_COLUMNS, profile_servers, waste_score
+
+
+def _profile(key: str) -> pd.DataFrame:
+    """Profile a scenario's servers."""
+    sc = load_scenario(key)
+    return profile_servers(sc.metrics, sc.servers)
+
+
+def test_profile_columns() -> None:
+    """Profile has section 6 columns, one row per server."""
+    sc = load_scenario("office_hours")
+    p = profile_servers(sc.metrics, sc.servers)
+    assert list(p.columns) == PROFILE_COLUMNS
+    assert len(p) == len(sc.servers)
+
+
+def test_office_hours_profile() -> None:
+    """Legacy servers are Zombies; most hr-portal servers are Wasteful."""
+    p = _profile("office_hours")
+    legacy = p[p["service"] == "legacy"]
+    assert len(legacy) == 2 and (legacy["status"] == "Zombie").all()
+    assert legacy["idle_since"].notna().all()
+    assert (legacy["wasted_monthly"] == legacy["monthly_cost"]).all()
+    hr = p[p["service"] == "hr-portal"]
+    assert (hr["status"] == "Wasteful").sum() > len(hr) / 2
+
+
+def test_forgotten_servers_profile() -> None:
+    """Exactly 5 Zombies and waste score above 25."""
+    p = _profile("forgotten_servers")
+    assert (p["status"] == "Zombie").sum() == 5
+    assert waste_score(p) > 25
+
+
+def test_sick_server_profile() -> None:
+    """pay-07 is Risky."""
+    p = _profile("sick_server").set_index("server_id")
+    assert p.loc["pay-07", "status"] == "Risky"
+    assert "memory" in p.loc["pay-07", "reason"].lower()
