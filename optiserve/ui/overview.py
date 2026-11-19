@@ -1,111 +1,71 @@
-"""Overview page: KPIs, fleet status, alerts and recommendations."""
+"""Overview page: insight, KPIs, fleet status, recommendations and alerts."""
 
-import html
-
-import plotly.graph_objects as go
 import streamlit as st
 
-from engine import config
 from engine.pipeline import ScenarioResult
-from ui.styles import SEVERITY_COLORS, STATUS_COLORS, chip
-
-SEVERITY_ORDER = {"critical": 0, "warning": 1, "info": 2}
-ACTION_COLORS = {"scale_down": "#22c55e", "schedule": "#22c55e", "scale_up": "#fb923c", "hold": "#38bdf8"}
+from ui import charts, components
+from ui.components import money, money_short  # noqa: F401  (re-exported for other pages)
 
 
-def money(value: float) -> str:
-    """Format a rupee amount like ₹12,345."""
-    return f"{config.CURRENCY}{value:,.0f}"
-
-
-def money_short(value: float) -> str:
-    """Format a rupee amount compactly, like ₹46.5K or ₹1.2M."""
-    for size, suffix in ((1e6, "M"), (1e3, "K")):
-        if abs(value) >= size:
-            return f"{config.CURRENCY}{value / size:.1f}{suffix}"
-    return money(value)
-
-
-def kpi_tile(label: str, value: str, hint: str, full: str = "") -> str:
-    """Return HTML for one KPI tile; `full` is shown as a hover tooltip on the value."""
-    tip = f' title="{html.escape(full)}"' if full else ""
-    return (f'<div class="os-kpi"><div class="label">{html.escape(label)}</div>'
-            f'<div class="value"{tip}>{html.escape(value)}</div><div class="hint">{html.escape(hint)}</div></div>')
+def insight(result: ScenarioResult) -> tuple[str, str]:
+    """Return (sentence, tone): the first critical alert, else the biggest saving."""
+    critical = [a for a in result.alerts if a["severity"] == "critical"]
+    if critical:
+        a = critical[0]
+        more = f" (+{len(critical) - 1} more critical)" if len(critical) > 1 else ""
+        return f"{a['service']}: {a['message']}{more}", "danger"
+    best = max(result.services.values(), key=lambda sr: sr.recommendation["savings_monthly"], default=None)
+    if best is not None and best.recommendation["savings_monthly"] > 0:
+        rec = best.recommendation
+        short = best.backtest.get("shortfall_hours_plan") if best.backtest else None
+        tail = f", with {short} hours short of capacity in last week's replay" if short is not None else ""
+        return (f"OptiServe can save {money(rec['savings_monthly'])}/month on {best.service} "
+                f"({rec['savings_pct']:.0f}%){tail}.", "success")
+    zombies = result.kpis.get("zombies", 0)
+    if zombies:
+        return f"{zombies} idle server(s) can be switched off to cut waste.", "warning"
+    return "Your fleet is already right-sized: no savings or alerts right now.", "info"
 
 
 def render_kpis(result: ScenarioResult) -> None:
-    """Draw the four headline KPI tiles."""
+    """Draw the four headline KPI cards."""
     k = result.kpis
-    tiles = [
-        ("Monthly cost", money_short(k["monthly_cost"]), "All servers today", money(k["monthly_cost"])),
-        ("Avg CPU", f"{k['avg_util']:.1f}%", "Active servers, 14 days", ""),
-        ("Waste score", f"{k['waste_score']:.1f}%", f"{k['zombies']} zombie · {k['risky']} risky", ""),
-        ("Savings / mo", money_short(k["potential_savings"]), "Zombies + right-sizing", money(k["potential_savings"])),
-    ]
-    for col, (label, value, hint, full) in zip(st.columns(4), tiles):
-        col.markdown(kpi_tile(label, value, hint, full), unsafe_allow_html=True)
-
-
-def status_chart(result: ScenarioResult) -> go.Figure:
-    """Build a bar chart of server counts per status."""
-    counts = result.profile["status"].value_counts()
-    statuses = [s for s in STATUS_COLORS if s in counts.index]
-    fig = go.Figure(go.Bar(
-        x=statuses,
-        y=[int(counts[s]) for s in statuses],
-        marker_color=[STATUS_COLORS[s] for s in statuses],
-        text=[int(counts[s]) for s in statuses],
-        textposition="outside",
-        hovertemplate="%{x}: %{y} server(s)<extra></extra>",
-    ))
-    fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                      height=320, margin=dict(l=10, r=10, t=30, b=10), showlegend=False,
-                      yaxis_title="Servers", xaxis_title=None)
-    return fig
-
-
-def render_alerts(result: ScenarioResult) -> None:
-    """Draw the alerts list, critical first."""
-    st.subheader("Alerts")
-    alerts = sorted(result.alerts, key=lambda a: SEVERITY_ORDER.get(a["severity"], 9))
-    if not alerts:
-        st.markdown('<div class="os-alert">No alerts — fleet looks healthy.</div>', unsafe_allow_html=True)
-        return
-    for a in alerts:
-        color = SEVERITY_COLORS.get(a["severity"], "#94a3b8")
-        st.markdown(
-            f'<div class="os-alert" style="border-left-color:{color}">'
-            f'<span class="sev" style="color:{color}">{html.escape(a["severity"])}</span>'
-            f'<b>{html.escape(a["service"])}</b> — {html.escape(a["message"])}</div>',
-            unsafe_allow_html=True,
-        )
+    components.kpi_row([
+        dict(label="Monthly cost", value=money_short(k["monthly_cost"]), hint="All servers today",
+             tooltip=money(k["monthly_cost"])),
+        dict(label="Avg CPU", value=f"{k['avg_util']:.1f}%", hint="Active servers, last 14 days"),
+        dict(label="Waste score", value=f"{k['waste_score']:.1f}%",
+             hint=f"{k['zombies']} idle · {k['risky']} unhealthy",
+             tone="warning" if k["waste_score"] > 25 else "neutral"),
+        dict(label="Potential savings", value=money_short(k["potential_savings"]), hint="Per month, idle + right-sizing",
+             tone="success" if k["potential_savings"] > 0 else "neutral", tooltip=money(k["potential_savings"])),
+    ])
 
 
 def render_recommendations(result: ScenarioResult) -> None:
     """Draw one recommendation card per service."""
-    st.subheader("Recommendations")
+    components.section("Recommendations", "What to change for each service, and what it saves.")
+    if not result.services:
+        components.text_card("Nothing to plan", "This scenario has no active services.")
+        return
     for name, sr in result.services.items():
         rec = sr.recommendation
-        action = str(rec.get("action", "hold"))
-        badge = chip(html.escape(action.replace("_", " ").capitalize()), ACTION_COLORS.get(action, "#f59e0b"))
-        st.markdown(
-            f'<div class="os-card"><h4>{html.escape(name)} {badge}</h4>'
-            f'<p>{html.escape(sr.explanation)}</p></div>',
-            unsafe_allow_html=True,
-        )
+        components.recommendation_card(name, str(rec["action"]), rec["current"], rec["planned_min"],
+                                       rec["planned_max"], rec["savings_monthly"], rec["savings_pct"], sr.explanation)
 
 
 def render(result: ScenarioResult) -> None:
     """Draw the overview page."""
     sc = result.scenario
-    st.title(sc.title)
-    st.markdown(f'<div class="os-story">{html.escape(sc.story)}</div>', unsafe_allow_html=True)
+    components.page_header("Overview", sc.story, sc.title)
+    components.insight_banner(*insight(result))
     render_kpis(result)
-    st.write("")
-    left, right = st.columns([3, 2])
+    left, right = st.columns([2, 1], gap="large")
     with left:
-        st.subheader("Fleet status")
-        st.plotly_chart(status_chart(result), width="stretch")
+        components.section("Fleet status", "Every server, grouped by how well it is sized.")
+        counts = result.profile["status"].value_counts().to_dict()
+        st.plotly_chart(charts.fleet_status_bar(counts), width="stretch", config={"displayModeBar": False})
+        render_recommendations(result)
     with right:
-        render_alerts(result)
-    render_recommendations(result)
+        components.section(f"Alerts ({len(result.alerts)})", "Most urgent first.")
+        components.alerts_feed(result.alerts)

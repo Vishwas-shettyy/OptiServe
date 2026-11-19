@@ -1,6 +1,4 @@
-"""Forecast & Plan page: demand forecast, server plan, recommendation and guardrails."""
-
-import html
+"""Forecast & Plan page: demand forecast, hourly server plan, recommendation and safety checks."""
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -8,128 +6,84 @@ import streamlit as st
 
 from engine import config
 from engine.pipeline import ScenarioResult, ServiceResult
-from ui.overview import ACTION_COLORS, money
-from ui.styles import ACCENT, chip
-
-RULE_ICONS = {"pass": "✅", "adjusted": "🟡", "blocked": "⛔"}
-ACTUAL_COLOR = "#e2e8f0"
-CURRENT_COLOR = "#94a3b8"
-PLANNED_COLOR = "#22c55e"
-EVENT_FILL = "rgba(251,146,60,0.15)"
+from ui import charts, components
+from ui.charts import ACTUAL_COLOR, CURRENT_COLOR, PLANNED_COLOR  # noqa: F401  (used by time_machine)
+from ui.components import money, money_short
 
 
 def _layout(fig: go.Figure, height: int, y_title: str) -> go.Figure:
-    """Apply the shared dark, transparent layout."""
-    fig.update_layout(template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                      height=height, margin=dict(l=10, r=10, t=30, b=10), yaxis_title=y_title,
-                      hovermode="x unified", legend=dict(orientation="h", y=1.08, x=0))
-    return fig
+    """Apply the shared chart style (kept for pages that still import it)."""
+    return charts.layout(fig, height, y_title)
 
 
-def _shade_events(fig: go.Figure, events: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> None:
-    """Shade and label event windows that overlap the visible range."""
-    for ev in events.itertuples():
-        if ev.end < start or ev.start > end:
-            continue
-        x0, x1 = max(ev.start, start), min(ev.end + pd.Timedelta(hours=1), end)
-        fig.add_vrect(x0=x0, x1=x1, fillcolor=EVENT_FILL, line_width=0, layer="below",
-                      annotation_text=ev.label, annotation_position="top left",
-                      annotation_font_color="#fb923c", annotation_font_size=11)
-
-
-def demand_chart(sr: ServiceResult, capacity_rps: float, events: pd.DataFrame) -> go.Figure:
-    """Build the requests chart: actuals, forecast band, current and planned capacity."""
-    hist = sr.history[sr.history["timestamp"] > sr.history["timestamp"].max() - pd.Timedelta(days=7)]
-    fc, plan = sr.forecast, sr.plan
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=fc["timestamp"], y=fc["high"], line=dict(width=0), showlegend=False,
-                             hoverinfo="skip"))
-    fig.add_trace(go.Scatter(x=fc["timestamp"], y=fc["low"], line=dict(width=0), fill="tonexty",
-                             fillcolor="rgba(56,189,248,0.18)", name="Forecast range (low–high)",
-                             hovertemplate="%{y:,.0f}"))
-    fig.add_trace(go.Scatter(x=hist["timestamp"], y=hist["requests"], name="Actual requests",
-                             line=dict(color=ACTUAL_COLOR, width=1.6), hovertemplate="%{y:,.0f}"))
-    fig.add_trace(go.Scatter(x=fc["timestamp"], y=fc["expected"], name="Forecast (expected)",
-                             line=dict(color=ACCENT, width=2), hovertemplate="%{y:,.0f}"))
-    fig.add_trace(go.Scatter(x=plan["timestamp"], y=plan["current"] * capacity_rps, name="Current capacity",
-                             line=dict(color=CURRENT_COLOR, dash="dash", shape="hv"), hovertemplate="%{y:,.0f}"))
-    fig.add_trace(go.Scatter(x=plan["timestamp"], y=plan["planned"] * capacity_rps, name="Planned capacity",
-                             line=dict(color=PLANNED_COLOR, width=2, shape="hv"), hovertemplate="%{y:,.0f}"))
-    start = hist["timestamp"].min()
-    end = fc["timestamp"].max() + pd.Timedelta(hours=1)
-    _shade_events(fig, events[events["service"] == sr.service], start, end)
-    fig.add_vline(x=fc["timestamp"].min(), line=dict(color="#475569", dash="dot", width=1))
-    return _layout(fig, 420, "Requests per hour")
-
-
-def servers_chart(sr: ServiceResult) -> go.Figure:
-    """Build the servers-per-hour chart: current vs planned."""
-    plan = sr.plan
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=plan["timestamp"], y=plan["current"], name="Current servers",
-                             line=dict(color=CURRENT_COLOR, dash="dash", shape="hv")))
-    fig.add_trace(go.Scatter(x=plan["timestamp"], y=plan["planned"], name="Planned servers",
-                             line=dict(color=PLANNED_COLOR, width=2, shape="hv"),
-                             fill="tozeroy", fillcolor="rgba(34,197,94,0.10)"))
-    fig.update_yaxes(rangemode="tozero")
-    return _layout(fig, 280, "Servers")
-
-
-def _range(rec: dict) -> str:
-    """Format the planned server range, collapsing it when min equals max."""
-    lo, hi = rec["planned_min"], rec["planned_max"]
-    return str(lo) if lo == hi else f"{lo}–{hi}"
-
-
-def recommendation_card(sr: ServiceResult) -> str:
-    """Return HTML for the recommendation card."""
+def insight(sr: ServiceResult) -> tuple[str, str]:
+    """Return (sentence, tone) with the page's key number for one service."""
     rec = sr.recommendation
-    action = str(rec["action"])
-    badge = chip(html.escape(action.replace("_", " ").capitalize()), ACTION_COLORS.get(action, "#f59e0b"))
+    blocked = [g for g in sr.guardrails if g["status"] == "blocked"]
+    rng = components.server_range(rec["planned_min"], rec["planned_max"])
+    if blocked and rec["savings_monthly"] <= 0:
+        return f"Scale-down held back on {sr.service}: {blocked[0]['message']}", "warning"
+    if rec["action"] == "scale_up":
+        return (f"{sr.service} needs up to {rec['planned_max']} servers at its busiest hour "
+                f"({rec['peak_time']:%a %d %b %H:%M}); you run {rec['current']} today.", "warning")
+    if rec["savings_monthly"] > 0:
+        return (f"Run {rng} servers instead of a fixed {rec['current']} on {sr.service} and save "
+                f"{money(rec['savings_monthly'])}/month ({rec['savings_pct']:.0f}%).", "success")
+    return f"{sr.service} is right-sized: keep {rec['current']} servers.", "info"
+
+
+def render_kpis(sr: ServiceResult) -> None:
+    """Draw current servers, planned range, saving and safety checks passed."""
+    rec = sr.recommendation
+    passed = sum(g["status"] == "pass" for g in sr.guardrails)
+    total = len(sr.guardrails)
+    n_blocked = sum(g["status"] == "blocked" for g in sr.guardrails)
+    n_adjusted = sum(g["status"] == "adjusted" for g in sr.guardrails)
     savings = rec["savings_monthly"]
-    verb, color = ("saves", PLANNED_COLOR) if savings >= 0 else ("costs extra", "#f59e0b")
-    return (
-        f'<div class="os-card"><h4>Recommendation {badge}</h4>'
-        f'<p>Current: <b>{rec["current"]}</b> servers fixed<br>'
-        f'Planned: <b>{_range(rec)}</b> servers (avg {rec["planned_avg"]:.1f})</p>'
-        f'<div class="value" style="font-size:1.6rem;font-weight:700;color:{color};margin-top:.5rem">'
-        f'{money(abs(savings))}/month</div>'
-        f'<p style="color:#94a3b8">{verb} · {abs(rec["savings_pct"]):.1f}% vs '
-        f'{money(rec["current_monthly"])} today</p></div>'
-    )
-
-
-def guardrail_checklist(sr: ServiceResult) -> str:
-    """Return HTML for the guardrail checklist."""
-    rows = "".join(
-        f'<p style="margin:.35rem 0">{RULE_ICONS.get(g["status"], "•")} <b>{html.escape(g["rule"])}</b>'
-        f'<br><span style="color:#94a3b8;font-size:.85rem">{html.escape(g["message"])}</span></p>'
-        for g in sr.guardrails
-    )
-    return f'<div class="os-card"><h4>Safety guardrails</h4>{rows}</div>'
+    components.kpi_row([
+        dict(label="Current servers", value=str(rec["current"]), hint="Fixed, every hour"),
+        dict(label="Planned range", value=components.server_range(rec["planned_min"], rec["planned_max"]),
+             hint=f"Avg {rec['planned_avg']:.1f} per hour", tone="info"),
+        dict(label="Saving / month" if savings >= 0 else "Extra cost / month",
+             value=money_short(abs(savings)), hint=f"{abs(rec['savings_pct']):.1f}% vs {money(rec['current_monthly'])}",
+             tone="success" if savings > 0 else ("warning" if savings < 0 else "neutral"), tooltip=money(abs(savings))),
+        dict(label="Safety checks passed", value=f"{passed}/{total}",
+             hint=f"{n_blocked} blocked · {n_adjusted} adjusted",
+             tone="danger" if n_blocked else ("warning" if n_adjusted else "success")),
+    ])
 
 
 def render(result: ScenarioResult) -> None:
     """Draw the Forecast & Plan page."""
-    st.title("Forecast & Plan")
+    sc = result.scenario
+    components.page_header("Forecast & Plan",
+                           f"Next {config.FORECAST_HOURS // 24} days of demand and the hour-by-hour server plan · "
+                           f"{config.risk_label(result.risk)} mode", sc.title)
     services = [name for name, sr in result.services.items() if not sr.plan.empty]
     if not services:
-        st.info("No services with a plan in this scenario.")
+        components.text_card("Nothing to plan", "This scenario has no active services with a forecast.")
         return
-    name = st.selectbox("Service", services)
+    name = services[0]
+    if len(services) > 1:
+        name = st.columns([1, 3])[0].selectbox("Service", services)
     sr = result.services[name]
-    servers = result.scenario.servers
+    components.insight_banner(*insight(sr))
+    render_kpis(sr)
+    servers = sc.servers
     capacity_rps = float(servers.loc[servers["service"] == name, "capacity_rps"].mean())
-    st.caption(f"Last 7 days of actuals, then the next {config.FORECAST_HOURS // 24} days forecast · "
-               f"risk setting {config.risk_label(result.risk)}")
-    left, right = st.columns([3, 1.3])
+    hist = sr.history[sr.history["timestamp"] > sr.history["timestamp"].max() - pd.Timedelta(days=7)]
+    left, right = st.columns([2, 1], gap="large")
     with left:
-        st.subheader("Demand vs capacity")
-        st.plotly_chart(demand_chart(sr, capacity_rps, result.scenario.events), width="stretch")
-        st.subheader("Servers per hour")
-        st.plotly_chart(servers_chart(sr), width="stretch")
+        components.section("Demand vs capacity", "Last 7 days of actual requests, then the forecast with its "
+                                                 "likely range, against current and planned capacity.")
+        st.plotly_chart(charts.demand_chart(hist, sr.forecast, sr.plan, sc.events[sc.events["service"] == name],
+                                            capacity_rps), width="stretch")
+        components.section("Servers per hour", "The plan adds servers before busy hours and removes them when quiet.")
+        st.plotly_chart(charts.servers_chart(sr.plan), width="stretch")
     with right:
-        st.markdown(recommendation_card(sr), unsafe_allow_html=True)
-        st.markdown(f'<div class="os-card"><h4>Why</h4><p>{html.escape(sr.explanation)}</p></div>',
-                    unsafe_allow_html=True)
-        st.markdown(guardrail_checklist(sr), unsafe_allow_html=True)
+        components.section("Recommendation")
+        rec = sr.recommendation
+        components.recommendation_card(name, str(rec["action"]), rec["current"], rec["planned_min"],
+                                       rec["planned_max"], rec["savings_monthly"], rec["savings_pct"])
+        components.text_card("Why", sr.explanation)
+        components.checklist("Safety checks", sr.guardrails)

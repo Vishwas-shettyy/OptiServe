@@ -66,7 +66,19 @@ section[data-testid="stSidebar"] [data-testid="stSliderTickBarMax"] {{ color: {S
 .os-logo .mark {{ width: 32px; height: 32px; border-radius: 9px; background: {ACCENT}; color: #fff;
   display: grid; place-items: center; font-size: 17px; font-weight: 800; }}
 .os-sub {{ color: {SIDEBAR_MUTED}; font-size: 13px; margin: 2px 0 16px 0; }}
-.os-footer {{ color: {SIDEBAR_MUTED}; font-size: 12px; margin-top: 32px; line-height: 1.5; }}
+.os-footer {{ color: {SIDEBAR_MUTED}; font-size: 12px; margin-top: 32px; line-height: 1.5;
+  border-top: 1px solid #1E293B; padding-top: 16px; }}
+.os-side-label {{ color: {SIDEBAR_MUTED}; font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .06em; margin: 16px 0 6px 0; }}
+.os-risk {{ color: {SIDEBAR_MUTED}; font-size: 13px; display: flex; align-items: center; gap: 8px; margin: -6px 0 8px 0; }}
+section[data-testid="stSidebar"] [role="radiogroup"] {{ gap: 2px; }}
+section[data-testid="stSidebar"] [role="radiogroup"] label {{ width: 100%; padding: 8px 12px; margin: 0;
+  border-radius: 10px; cursor: pointer; transition: background .15s ease; }}
+section[data-testid="stSidebar"] [role="radiogroup"] label > div:first-child {{ display: none; }}
+section[data-testid="stSidebar"] [role="radiogroup"] label:hover {{ background: rgba(148,163,184,.12); }}
+section[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {{ background: rgba(37,99,235,.28); }}
+section[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) p {{ color: #FFFFFF; font-weight: 600; }}
+section[data-testid="stSidebar"] [role="radiogroup"] label p {{ font-size: 14px; }}
 
 /* ---- motion ---- */
 @keyframes os-rise {{ from {{ opacity: 0; transform: translateY(6px); }} to {{ opacity: 1; transform: none; }} }}
@@ -79,6 +91,20 @@ section[data-testid="stSidebar"] [data-testid="stSliderTickBarMax"] {{ color: {S
   padding: 16px 24px; margin-bottom: 16px; }}
 .os-card h4 {{ margin: 0 0 8px 0; color: {TEXT}; font-size: 16px; font-weight: 600; }}
 .os-card p {{ margin: 0; color: {TEXT_2}; line-height: 1.55; }}
+[data-testid="stPlotlyChart"] {{ background: {SURFACE}; border: 1px solid {BORDER}; border-radius: {RADIUS};
+  box-shadow: {SHADOW}; padding: 8px 12px; margin-bottom: 8px; overflow: hidden; }}
+.os-rec .head {{ display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 12px; }}
+.os-rec .name {{ font-size: 16px; font-weight: 600; color: {TEXT}; }}
+.os-rec .stats {{ display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 12px; }}
+.os-rec .stat .label {{ color: {TEXT_2}; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }}
+.os-rec .stat .value {{ color: {TEXT}; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }}
+.os-check {{ display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid {BORDER}; }}
+.os-check:last-child {{ border-bottom: 0; padding-bottom: 0; }}
+.os-check .icon {{ font-size: 16px; line-height: 1.4; }}
+.os-check .rule {{ font-weight: 600; color: {TEXT}; font-size: 14px; }}
+.os-check .state {{ font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-left: 8px; }}
+.os-check .msg {{ color: {TEXT_2}; font-size: 13px; line-height: 1.45; margin-top: 2px; }}
 .os-placeholder {{ text-align: center; padding: 64px 16px; color: {TEXT_2}; }}
 .os-story {{ color: {TEXT_2}; font-size: 14px; margin-bottom: 16px; }}
 
