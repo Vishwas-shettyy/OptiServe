@@ -2,6 +2,7 @@
 
 import importlib
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -182,3 +183,106 @@ def test_naive_and_wape() -> None:
     assert len(naive) == 168 and (naive.to_numpy() == expected).all()
     assert wape(pd.Series([10.0, 20.0]), pd.Series([10.0, 20.0])) == 0.0
     assert wape(pd.Series([10.0, 10.0]), pd.Series([5.0, 15.0])) == 0.5
+
+
+def _planned(key: str, risk: float = 0.5) -> tuple:
+    """Return (scenario, forecast, raw plan, guarded plan, rules) for a scenario's first service."""
+    from engine import config
+    from engine.data_gen import load_scenario
+    from engine.forecaster import forecast_service, service_demand
+    from engine.guardrails import apply_guardrails
+    from engine.planner import build_plan
+    from engine.profiler import profile_servers
+
+    sc = load_scenario(key)
+    params = config.risk_params(risk)
+    demand = service_demand(sc.metrics, sc.servers)
+    service = next(iter(sc.current_servers))
+    hist = demand[demand["service"] == service]
+    start = hist["timestamp"].max() + pd.Timedelta(hours=1)
+    fc, _ = forecast_service(hist, sc.events, start, config.FORECAST_HOURS, params["z"])
+    current = sc.current_servers[service]
+    raw = build_plan(fc, current, config.CAPACITY_RPS, params["target_util"])
+    profile = profile_servers(sc.metrics, sc.servers)
+    days = int(round((hist["timestamp"].max() - hist["timestamp"].min()) / pd.Timedelta(days=1))) + 1
+    plan, rules = apply_guardrails(raw, fc, profile[profile["service"] == service], days, current)
+    return sc, fc, raw, plan, rules
+
+
+def test_plan_columns_and_recommendation() -> None:
+    """Plan matches section 3 and recommend returns every section 8 key."""
+    from engine.planner import recommend
+
+    _, _, raw, plan, rules = _planned("office_hours")
+    assert list(plan.columns) == ["timestamp", "needed_raw", "planned", "current"] and len(plan) == 168
+    assert [r["rule"] for r in rules] == ["Minimum servers", "Pre-warm", "Step limit", "Low data", "Low confidence", "Health"]
+    assert all(r["status"] in {"pass", "adjusted", "blocked"} and r["message"] for r in rules)
+    rec = recommend(plan, 7000.0, 12)
+    assert set(rec) == {"current", "planned_min", "planned_avg", "planned_max", "current_monthly", "planned_monthly",
+                        "savings_monthly", "savings_pct", "action", "peak_time", "peak_servers", "quiet_time"}
+    assert rec["savings_monthly"] > 0 and rec["action"] in {"scale_down", "schedule"}
+
+
+def test_office_hours_night_plan() -> None:
+    """hr-portal needs at most 3 servers 00:00–05:00 on forecast weekdays."""
+    _, _, _, plan, _ = _planned("office_hours")
+    ts = plan["timestamp"].dt
+    night = plan[(ts.day_of_week < 5) & (ts.hour <= 5)]
+    assert len(night) == 30 and (night["planned"] <= 3).all()
+
+
+def test_flash_sale_plan() -> None:
+    """The festive sale hour is planned above today's 10 servers."""
+    _, _, _, plan, _ = _planned("flash_sale")
+    assert plan.set_index("timestamp").loc[pd.Timestamp("2026-11-20 18:00"), "planned"] > 10
+
+
+def test_sick_server_health_blocks() -> None:
+    """A Risky server blocks scale-down below current."""
+    _, _, _, plan, rules = _planned("sick_server")
+    health = next(r for r in rules if r["rule"] == "Health")
+    assert health["status"] == "blocked" and "pay-07" in health["message"]
+    assert plan["planned"].min() >= 8
+
+
+@pytest.mark.parametrize("key", ["office_hours", "flash_sale", "forgotten_servers", "sick_server"])
+@pytest.mark.parametrize("risk", [0.0, 1.0])
+def test_guardrail_invariants(key: str, risk: float) -> None:
+    """Planned never drops below MIN_SERVERS nor by more than MAX_STEP_DOWN per hour."""
+    from engine import config
+
+    _, _, _, plan, _ = _planned(key, risk)
+    planned = plan["planned"].to_numpy()
+    assert planned.min() >= config.MIN_SERVERS
+    assert (np.diff(planned) >= -config.MAX_STEP_DOWN).all()
+
+
+def test_guardrail_low_data_and_confidence() -> None:
+    """Low data holds current; a wide forecast band blocks scale-down."""
+    from engine.guardrails import apply_guardrails
+
+    _, fc, raw, _, _ = _planned("office_hours")
+    empty = pd.DataFrame(columns=["server_id", "status"])
+    plan, rules = apply_guardrails(raw, fc, empty, 3, 12)
+    assert (plan["planned"] == 12).all() and rules[3]["status"] == "blocked"
+    wide = fc.assign(low=0.0, high=fc["expected"] * 3)
+    plan, rules = apply_guardrails(raw, wide, empty, 28, 12)
+    assert plan["planned"].min() >= 12 and rules[4]["status"] == "blocked"
+
+
+def test_build_alerts() -> None:
+    """Alerts include critical pay-07, zombie info and are sorted by severity."""
+    from types import SimpleNamespace
+
+    from engine.guardrails import build_alerts
+    from engine.profiler import profile_servers
+
+    sc, fc, _, plan, _ = _planned("flash_sale")
+    res = {"shop-web": SimpleNamespace(forecast=fc, plan=plan, anomalies=[])}
+    alerts = build_alerts(profile_servers(sc.metrics, sc.servers), res)
+    assert any(a["severity"] == "warning" and "Capacity shortfall expected" in a["message"] for a in alerts)
+    assert alerts[-1]["severity"] == "info"
+    sc, fc, _, plan, _ = _planned("sick_server")
+    res = {"payments-api": SimpleNamespace(forecast=fc, plan=plan, anomalies=[])}
+    alerts = build_alerts(profile_servers(sc.metrics, sc.servers), res)
+    assert alerts[0]["severity"] == "critical" and "pay-07" in alerts[0]["message"]
