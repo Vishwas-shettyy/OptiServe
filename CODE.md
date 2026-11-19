@@ -180,7 +180,7 @@ shortfall hour = actual > servers*capacity_rps; overprov hour = actual/(servers*
 ## 11. explainer.py
 
 `explain(service, rec, guardrails, risk) -> str`: 2–4 short sentences, plain language, numbers with thousand separators and CURRENCY. Template:
-"`{service}`: run {min}–{max} servers instead of a fixed {current}. Busiest hour {peak_time:%a %d %b %H:%M} needs {peak_servers}. Saves ₹{savings:,}/month ({pct}%). Risk setting: {label}." + one sentence per blocked/adjusted rule.
+"`{service}`: run {min}–{max} servers instead of a fixed {current}. Busiest hour {peak_time:%a %d %b %H:%M} needs {peak_servers}. Saves ₹{savings:,}/month ({pct}%). Risk setting: {label}." + one sentence per blocked/adjusted rule. When min == max, write "{n} servers" instead of "{n}–{n}".
 
 ## 12. pipeline.py
 

@@ -401,3 +401,4 @@ def test_acceptance_sick_server() -> None:
     bt = sr.backtest
     assert (bt["series"]["capacity_plan"] >= bt["series"]["capacity_fixed"]).all()
     assert abs(bt["savings_pct"]) <= 1.0 and bt["shortfall_hours_plan"] == 0
+    assert "payments-api: run 8 servers instead of a fixed 8." in sr.explanation
