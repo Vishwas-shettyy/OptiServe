@@ -4,7 +4,7 @@ import streamlit as st
 
 from engine.pipeline import ScenarioResult
 from ui import charts, components
-from ui.components import money, money_short  # noqa: F401  (re-exported for other pages)
+from ui.components import money, money_short
 
 
 def insight(result: ScenarioResult) -> tuple[str, str]:
@@ -64,7 +64,7 @@ def render(result: ScenarioResult) -> None:
     with left:
         components.section("Fleet status", "Every server, grouped by how well it is sized.")
         counts = result.profile["status"].value_counts().to_dict()
-        st.plotly_chart(charts.fleet_status_bar(counts), width="stretch", config={"displayModeBar": False})
+        st.plotly_chart(charts.fleet_status_bar(counts), width="stretch", theme=None, config={"displayModeBar": False})
         render_recommendations(result)
     with right:
         components.section(f"Alerts ({len(result.alerts)})", "Most urgent first.")

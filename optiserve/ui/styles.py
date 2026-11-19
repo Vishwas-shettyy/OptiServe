@@ -82,15 +82,15 @@ section[data-testid="stSidebar"] [role="radiogroup"] label p {{ font-size: 14px;
 
 /* ---- motion ---- */
 @keyframes os-rise {{ from {{ opacity: 0; transform: translateY(6px); }} to {{ opacity: 1; transform: none; }} }}
-.os-card, .os-kpi, .os-tile, .os-banner-insight, .os-alert {{ animation: os-rise .25s ease-out both; }}
-.os-card, .os-kpi, .os-tile {{ transition: transform .15s ease, box-shadow .15s ease; }}
-.os-card:hover, .os-kpi:hover, .os-tile:hover {{ transform: translateY(-2px); box-shadow: 0 6px 16px rgba(16,24,40,.08); }}
+.os-card, .os-kpi, .os-banner-insight, .os-alert {{ animation: os-rise .25s ease-out both; }}
+.os-card, .os-kpi {{ transition: transform .15s ease, box-shadow .15s ease; }}
+.os-card:hover, .os-kpi:hover {{ transform: translateY(-2px); box-shadow: 0 6px 16px rgba(16,24,40,.08); }}
 
 /* ---- cards ---- */
 .os-card {{ background: {SURFACE}; border: 1px solid {BORDER}; border-radius: {RADIUS}; box-shadow: {SHADOW};
   padding: 16px 24px; margin-bottom: 16px; }}
 .os-card h4 {{ margin: 0 0 8px 0; color: {TEXT}; font-size: 16px; font-weight: 600; }}
-.os-card p {{ margin: 0; color: {TEXT_2}; line-height: 1.55; }}
+.os-card p {{ margin: 0; color: {TEXT_2}; line-height: 1.55; font-size: 14px; }}
 [data-testid="stPlotlyChart"] {{ background: {SURFACE}; border: 1px solid {BORDER}; border-radius: {RADIUS};
   box-shadow: {SHADOW}; padding: 8px 12px; margin-bottom: 8px; overflow: hidden; }}
 .os-rec .head {{ display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -105,8 +105,6 @@ section[data-testid="stSidebar"] [role="radiogroup"] label p {{ font-size: 14px;
 .os-check .rule {{ font-weight: 600; color: {TEXT}; font-size: 14px; }}
 .os-check .state {{ font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-left: 8px; }}
 .os-check .msg {{ color: {TEXT_2}; font-size: 13px; line-height: 1.45; margin-top: 2px; }}
-.os-placeholder {{ text-align: center; padding: 64px 16px; color: {TEXT_2}; }}
-.os-story {{ color: {TEXT_2}; font-size: 14px; margin-bottom: 16px; }}
 
 /* ---- page header & section ---- */
 .os-header {{ display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;
@@ -121,8 +119,6 @@ section[data-testid="stSidebar"] [role="radiogroup"] label p {{ font-size: 14px;
 .os-pill {{ display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px;
   font-size: 12px; font-weight: 600; line-height: 20px; white-space: nowrap; }}
 .os-pill .dot {{ width: 6px; height: 6px; border-radius: 50%; background: currentColor; }}
-.os-chip {{ display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
-  border: 1px solid currentColor; margin-right: 6px; white-space: nowrap; }}
 .os-tip {{ border-bottom: 1px dotted {MUTED}; cursor: help; }}
 
 /* ---- insight banner ---- */
@@ -131,7 +127,7 @@ section[data-testid="stSidebar"] [role="radiogroup"] label p {{ font-size: 14px;
 .os-banner-insight .icon {{ font-size: 18px; line-height: 1.3; }}
 
 /* ---- KPI cards ---- */
-.os-kpi-row {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px; }}
+.os-kpi-row {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 16px; }}
 .os-kpi {{ background: {SURFACE}; border: 1px solid {BORDER}; border-radius: {RADIUS}; box-shadow: {SHADOW};
   padding: 16px 20px; height: 100%; min-width: 0; border-top: 3px solid var(--tone, {BORDER}); }}
 .os-kpi .label, .os-kpi .value, .os-kpi .hint {{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
@@ -148,13 +144,49 @@ section[data-testid="stSidebar"] [role="radiogroup"] label p {{ font-size: 14px;
 .os-alert .icon {{ font-size: 16px; line-height: 1.4; }}
 .os-alert .sev {{ font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: .04em; margin-right: 8px; }}
 
-/* ---- comparison tiles (Time Machine, until U3) ---- */
-.os-tile {{ background: {SURFACE}; border: 1px solid {BORDER}; border-radius: {RADIUS}; box-shadow: {SHADOW};
-  padding: 16px 20px; height: 100%; }}
-.os-tile .label {{ color: {TEXT_2}; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }}
-.os-tile .row {{ display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 14px; color: {TEXT_2}; }}
-.os-tile .row b {{ color: {TEXT}; font-size: 18px; font-variant-numeric: tabular-nums; }}
-.os-tile .big {{ color: #16A34A; font-size: 30px; font-weight: 700; margin-top: 4px; }}
+/* ---- tables ---- */
+.os-table-card {{ padding: 16px 0 8px; }}
+.os-table-card h4 {{ padding: 0 24px; }}
+.os-table-wrap {{ overflow-x: auto; }}
+.os-table {{ width: 100%; border-collapse: collapse; margin: 0; display: table; font-size: 14px; color: {TEXT}; }}
+.os-table th, .os-table td {{ border: 0; }}
+.os-table th {{ text-align: left; color: {TEXT_2}; font-size: 12px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: .04em; padding: 10px 12px; border-bottom: 1px solid {BORDER}; white-space: nowrap; background: #FAFBFD; }}
+.os-table td {{ padding: 10px 12px; border-bottom: 1px solid {BORDER}; vertical-align: middle; }}
+.os-table td.num, .os-table td:first-child {{ white-space: nowrap; }}
+.os-table tr:last-child td {{ border-bottom: 0; }}
+.os-table tbody tr:hover td {{ background: {ACCENT_TINT}; }}
+.os-table .sub {{ color: {MUTED}; font-size: 12px; font-weight: 400; margin-top: 2px; }}
+.os-table .num {{ text-align: right; font-variant-numeric: tabular-nums; }}
+.stDownloadButton button {{ border-radius: 10px; border: 1px solid {BORDER}; background: {SURFACE}; color: {TEXT};
+  font-weight: 600; box-shadow: {SHADOW}; }}
+.stDownloadButton button:hover {{ border-color: {ACCENT}; color: {ACCENT}; }}
+
+/* ---- segmented control & tabs ---- */
+[data-testid="stButtonGroup"] {{ margin-bottom: 8px; }}
+.stTabs [data-baseweb="tab-list"] {{ gap: 8px; border-bottom: 1px solid {BORDER}; }}
+.stTabs [data-baseweb="tab"] p {{ font-weight: 600; font-size: 14px; }}
+
+/* ---- Before vs After split card ---- */
+.os-split {{ display: grid; grid-template-columns: 1fr 1fr; padding: 0; overflow: hidden; }}
+.os-split .side {{ padding: 20px 24px; display: grid; gap: 14px; align-content: start; }}
+.os-split .side.after {{ background: {tint("#16A34A", .05)}; border-left: 1px solid {BORDER}; }}
+.os-split .tag {{ font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: {TEXT_2}; }}
+.os-split .after .tag {{ color: #16A34A; }}
+.os-split .m .label {{ color: {TEXT_2}; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }}
+.os-split .m .value {{ font-size: 24px; font-weight: 700; color: {TEXT}; font-variant-numeric: tabular-nums;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }}
+.os-split .delta {{ font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }}
+@media (max-width: 720px) {{ .os-split {{ grid-template-columns: 1fr; }} .os-split .side.after {{ border-left: 0;
+  border-top: 1px solid {BORDER}; }} }}
+
+/* ---- comparison bars ---- */
+.os-bar-row {{ margin: 12px 0; }}
+.os-bar-row .lbl {{ display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: {TEXT_2}; }}
+.os-bar-row .lbl b {{ color: {TEXT}; font-variant-numeric: tabular-nums; }}
+.os-bar-row .track {{ background: {GRID}; border-radius: 6px; height: 10px; margin-top: 6px; }}
+.os-bar-row .fill {{ height: 10px; border-radius: 6px; }}
+.os-card p.os-note {{ color: {TEXT_2}; font-size: 13px; margin-top: 8px; }}
 
 /* ---- Graveyard night scene (stays dark inside the light app) ---- */
 .os-sky {{ background: radial-gradient(ellipse at top, #1e1b4b 0%, #0b1120 55%, #020617 100%);
@@ -166,7 +198,7 @@ section[data-testid="stSidebar"] [role="radiogroup"] label p {{ font-size: 14px;
   radial-gradient(1px 1px at 90% 30%, #fff, transparent), radial-gradient(1px 1px at 22% 40%, #94a3b8, transparent),
   radial-gradient(1.5px 1.5px at 66% 45%, #e2e8f0, transparent), radial-gradient(1px 1px at 45% 35%, #fff, transparent); }}
 .os-moon {{ position: absolute; top: 16px; right: 24px; width: 46px; height: 46px; border-radius: 50%;
-  background: #fef9c3; box-shadow: 0 0 30px 8px rgba(254,249,195,.25); }}
+  background: radial-gradient(circle at 35% 35%, #fefce8, #fde68a); box-shadow: 0 0 40px 12px rgba(254,249,195,.18); opacity: .9; }}
 .os-banner {{ position: relative; color: #e2e8f0; margin-bottom: 20px; }}
 .os-banner .big {{ font-size: 32px; font-weight: 800; color: #f8fafc; font-variant-numeric: tabular-nums; }}
 .os-banner .small {{ color: #94a3b8; font-size: 14px; }}
@@ -174,8 +206,11 @@ section[data-testid="stSidebar"] [role="radiogroup"] label p {{ font-size: 14px;
   padding-bottom: 12px; border-bottom: 6px solid #14532d; }}
 .os-stone {{ background: linear-gradient(180deg, #475569, #334155 70%, #1e293b); border-radius: 90px 90px 10px 10px;
   padding: 26px 14px 16px; text-align: center; color: #e2e8f0; border: 1px solid #64748b;
-  box-shadow: 0 8px 18px rgba(0,0,0,.45); transition: transform .15s; cursor: help; }}
-.os-stone:hover {{ transform: translateY(-2px); }}
+  box-shadow: 0 8px 18px rgba(0,0,0,.45); transition: transform .15s ease, box-shadow .15s ease; cursor: help; }}
+.os-stone:hover {{ transform: translateY(-4px); box-shadow: 0 14px 26px rgba(0,0,0,.55); }}
+.os-stone .pill-wrap {{ margin-top: 10px; }}
+.os-hint {{ position: relative; color: #94a3b8; font-size: 12px; margin-top: 12px; }}
+.os-empty-yard {{ color: #cbd5e1; padding: 24px 0; }}
 .os-stone .epitaph {{ font-family: Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: .08em; color: #f1f5f9; }}
 .os-stone .name {{ font-weight: 700; margin: 8px 0 2px; word-break: break-word; }}
 .os-stone .meta {{ color: #cbd5e1; font-size: 12px; line-height: 1.5; }}
@@ -188,7 +223,3 @@ def inject_css() -> None:
     """Inject the global CSS (call once per run, before any page renders)."""
     st.markdown(CSS, unsafe_allow_html=True)
 
-
-def chip(text: str, color: str) -> str:
-    """Return HTML for a coloured outline chip (legacy pages; new code uses components.status_pill)."""
-    return f'<span class="os-chip" style="color:{color}">{text}</span>'

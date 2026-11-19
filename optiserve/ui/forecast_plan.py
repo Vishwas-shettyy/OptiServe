@@ -1,19 +1,12 @@
 """Forecast & Plan page: demand forecast, hourly server plan, recommendation and safety checks."""
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
 from engine import config
 from engine.pipeline import ScenarioResult, ServiceResult
 from ui import charts, components
-from ui.charts import ACTUAL_COLOR, CURRENT_COLOR, PLANNED_COLOR  # noqa: F401  (used by time_machine)
 from ui.components import money, money_short
-
-
-def _layout(fig: go.Figure, height: int, y_title: str) -> go.Figure:
-    """Apply the shared chart style (kept for pages that still import it)."""
-    return charts.layout(fig, height, y_title)
 
 
 def insight(sr: ServiceResult) -> tuple[str, str]:
@@ -47,7 +40,7 @@ def render_kpis(sr: ServiceResult) -> None:
         dict(label="Saving / month" if savings >= 0 else "Extra cost / month",
              value=money_short(abs(savings)), hint=f"{abs(rec['savings_pct']):.1f}% vs {money(rec['current_monthly'])}",
              tone="success" if savings > 0 else ("warning" if savings < 0 else "neutral"), tooltip=money(abs(savings))),
-        dict(label="Safety checks passed", value=f"{passed}/{total}",
+        dict(label="Safety checks", value=f"{passed}/{total}",
              hint=f"{n_blocked} blocked · {n_adjusted} adjusted",
              tone="danger" if n_blocked else ("warning" if n_adjusted else "success")),
     ])
@@ -77,9 +70,9 @@ def render(result: ScenarioResult) -> None:
         components.section("Demand vs capacity", "Last 7 days of actual requests, then the forecast with its "
                                                  "likely range, against current and planned capacity.")
         st.plotly_chart(charts.demand_chart(hist, sr.forecast, sr.plan, sc.events[sc.events["service"] == name],
-                                            capacity_rps), width="stretch")
+                                            capacity_rps), width="stretch", theme=None)
         components.section("Servers per hour", "The plan adds servers before busy hours and removes them when quiet.")
-        st.plotly_chart(charts.servers_chart(sr.plan), width="stretch")
+        st.plotly_chart(charts.servers_chart(sr.plan), width="stretch", theme=None)
     with right:
         components.section("Recommendation")
         rec = sr.recommendation

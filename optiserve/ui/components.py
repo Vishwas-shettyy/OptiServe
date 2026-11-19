@@ -205,3 +205,84 @@ def alerts_feed(alerts: Sequence[dict]) -> None:
         return
     for a in sorted(alerts, key=lambda a: order.get(a["severity"], 9)):
         alert_row(a["severity"], a["service"], a["message"])
+
+
+# ---- Server Graveyard ----------------------------------------------------------
+
+EPITAPHS: dict[str, str] = {"Zombie": "R.I.P.", "Wasteful": "On notice", "Risky": "Do not bury"}
+STATUS_PILL_ON_DARK: dict[str, str] = {"Zombie": "#C4B5FD", "Wasteful": "#FCD34D", "Risky": "#FCA5A5",
+                                       "Hot": "#FDBA74", "Right-sized": "#86EFAC"}
+
+
+def tombstone(name: str, instance_type: str, service: str, status: str, cost: float, idle_since: str,
+              reason: str) -> str:
+    """Return HTML for one tombstone; hovering shows the reason."""
+    color = STATUS_COLORS.get(status, TEXT_2)
+    return (f'<div class="os-stone" title="{_e(reason)}" style="border-top:3px solid {color}">'
+            f'<div class="epitaph">{_e(EPITAPHS.get(status, status))}</div>'
+            f'<div class="name">{_e(name)}</div>'
+            f'<div class="meta">{_e(instance_type)} · {_e(service)}</div>'
+            f'<div class="cost">{_e(money(cost))}/mo</div>'
+            f'<div class="meta">{_e(idle_since)}</div>'
+            f'<div class="pill-wrap">{pill(status, STATUS_PILL_ON_DARK.get(status, color))}</div></div>')
+
+
+def night_scene(total_wasted: float, counts: dict[str, int], stones: Sequence[str]) -> None:
+    """Render the dark night-scene panel with its waste banner and a grid of tombstones."""
+    parts = " · ".join(f"{n} {EPITAPHS.get(s, s).lower()}" for s, n in counts.items())
+    body = "".join(stones) or '<div class="os-empty-yard">The yard is empty — every server is earning its keep.</div>'
+    _md(f'<div class="os-sky"><div class="os-moon"></div><div class="os-banner">'
+        f'<div class="small">Wasted every month</div><div class="big">{_e(money(total_wasted))}</div>'
+        f'<div class="small">{len(stones)} server(s) in the yard — {_e(parts)}</div></div>'
+        f'<div class="os-yard">{body}</div><div class="os-hint">Hover a stone to see why it is here.</div></div>')
+
+
+def table_card(title: str, headers: Sequence[str], rows: Sequence[Sequence[str]], numeric: Sequence[int] = ()) -> None:
+    """Render a white table card; cells are pre-built HTML, `numeric` column indexes align right."""
+    def cls(i: int) -> str:
+        """Return the CSS class for column i."""
+        return ' class="num"' if i in numeric else ""
+    head = "".join(f"<th{cls(i)}>{_e(h)}</th>" for i, h in enumerate(headers))
+    body = "".join("<tr>" + "".join(f"<td{cls(i)}>{c}</td>" for i, c in enumerate(r)) + "</tr>" for r in rows)
+    _md(f'<div class="os-card os-table-card"><h4>{_e(title)}</h4><div class="os-table-wrap">'
+        f'<table class="os-table"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div></div>')
+
+
+def esc(text: object) -> str:
+    """Escape text for use as a table cell."""
+    return _e(text)
+
+
+# ---- Time Machine -----------------------------------------------------------------
+
+def _delta(fixed: float, plan: float, fmt: str) -> str:
+    """Return a green (better) or red (worse) delta chip; lower is better."""
+    diff = plan - fixed
+    if abs(diff) < 1e-9:
+        return f'<span class="delta" style="color:{TEXT_2}">no change</span>'
+    color = TONE_COLORS["success"] if diff < 0 else TONE_COLORS["danger"]
+    arrow = "▼" if diff < 0 else "▲"
+    value = money(abs(diff)) if fmt == "money" else f"{abs(diff):,.0f} h"
+    return f'<span class="delta" style="color:{color};background:{tint(color)}">{arrow} {_e(value)}</span>'
+
+
+def before_after(metrics: Sequence[tuple[str, float, float, str]]) -> None:
+    """Render the Before vs After split card; each metric is (label, fixed, optiserve, 'money'|'hours')."""
+    def fmt(v: float, kind: str) -> str:
+        """Format one metric value."""
+        return money(v) if kind == "money" else f"{v:,.0f}"
+    left = "".join(f'<div class="m"><div class="label">{_e(l)}</div><div class="value">{_e(fmt(f, k))}</div></div>'
+                   for l, f, _, k in metrics)
+    right = "".join(f'<div class="m"><div class="label">{_e(l)}</div><div class="value">{_e(fmt(p, k))}'
+                    f'{_delta(f, p, k)}</div></div>' for l, f, p, k in metrics)
+    _md(f'<div class="os-card os-split"><div class="side"><div class="tag">Before · Fixed setup</div>{left}</div>'
+        f'<div class="side after"><div class="tag">After · OptiServe</div>{right}</div></div>')
+
+
+def compare_bars(title: str, rows: Sequence[tuple[str, float, str]], note: str) -> None:
+    """Render a card of horizontal percentage bars; rows are (label, percent, colour), lower is better."""
+    top = max([v for _, v, _ in rows] + [1e-9])
+    bars = "".join(f'<div class="os-bar-row"><div class="lbl"><span>{_e(l)}</span><b>{v:.1f}%</b></div>'
+                   f'<div class="track"><div class="fill" style="width:{v / top * 100:.0f}%;background:{c}"></div>'
+                   f'</div></div>' for l, v, c in rows)
+    _md(f'<div class="os-card"><h4>{_e(title)}</h4>{bars}<p class="os-note">{_e(note)}</p></div>')

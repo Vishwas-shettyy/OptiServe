@@ -89,16 +89,19 @@ def demand_chart(history: pd.DataFrame, forecast: pd.DataFrame, plan: pd.DataFra
     for ev in events.itertuples():
         if ev.end < start or ev.start > end:
             continue
-        fig.add_vrect(x0=max(ev.start, start), x1=min(ev.end + pd.Timedelta(hours=1), end),
-                      fillcolor=tint(EVENT_COLOR, .12), line_width=0, layer="below",
-                      annotation_text=ev.label, annotation_position="top left",
+        x0, x1 = max(ev.start, start), min(ev.end + pd.Timedelta(hours=1), end)
+        late = (x0 - start) > (end - start) * 0.7
+        fig.add_vrect(x0=x0, x1=x1, fillcolor=tint(EVENT_COLOR, .12), line_width=0, layer="below",
+                      annotation_text=ev.label, annotation_position="top right" if late else "top left",
                       annotation_font=dict(color=EVENT_COLOR, size=11))
     split = forecast["timestamp"].min()
     fig.add_vline(x=split, line=dict(color=GRID_STRONG, dash="dot", width=1))
-    fig.add_annotation(x=split, y=1, yref="paper", text="Forecast →", showarrow=False, xanchor="left",
-                       yanchor="bottom", font=dict(color=TEXT_2, size=11))
+    fig.add_annotation(x=split, y=0.99, yref="paper", text="Forecast →", showarrow=False, xanchor="left",
+                       yanchor="top", xshift=4, font=dict(color=TEXT_2, size=11))
     fig.update_yaxes(rangemode="tozero", tickformat=",")
-    return layout(fig, 400, "Requests per hour")
+    layout(fig, 420, "Requests per hour")
+    fig.update_layout(margin=dict(l=8, r=8, t=72, b=8))
+    return fig
 
 
 def servers_chart(plan: pd.DataFrame) -> go.Figure:
@@ -111,3 +114,27 @@ def servers_chart(plan: pd.DataFrame) -> go.Figure:
                              fill="tozeroy", fillcolor=tint(PLANNED_COLOR, .10)))
     fig.update_yaxes(rangemode="tozero")
     return layout(fig, 260, "Servers")
+
+
+SHORT_COLOR = STATUS_COLORS["Risky"]
+
+
+def test_week_chart(series: pd.DataFrame) -> go.Figure:
+    """Build the test-week chart: actual demand, fixed and OptiServe capacity, hours short shaded red."""
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=series["timestamp"], y=series["capacity_fixed"], name="Fixed capacity",
+                             line=dict(color=CURRENT_COLOR, dash="dash", width=1.5, shape="hv"),
+                             hovertemplate="%{y:,.0f}"))
+    fig.add_trace(go.Scatter(x=series["timestamp"], y=series["capacity_plan"], name="OptiServe capacity",
+                             line=dict(color=PLANNED_COLOR, width=2, shape="hv"), hovertemplate="%{y:,.0f}"))
+    fig.add_trace(go.Scatter(x=series["timestamp"], y=series["actual"], name="Actual demand",
+                             line=dict(color=ACTUAL_COLOR, width=1.6), hovertemplate="%{y:,.0f}"))
+    short = series[(series["actual"] > series["capacity_fixed"]) | (series["actual"] > series["capacity_plan"])]
+    if not short.empty:
+        fig.add_trace(go.Scatter(x=short["timestamp"], y=short["actual"], mode="markers", name="Hours short",
+                                 marker=dict(color=SHORT_COLOR, size=7), hovertemplate="Short: %{y:,.0f}"))
+        for ts in short["timestamp"]:
+            fig.add_vrect(x0=ts, x1=ts + pd.Timedelta(hours=1), fillcolor=tint(SHORT_COLOR, .15), line_width=0,
+                          layer="below")
+    fig.update_yaxes(rangemode="tozero", tickformat=",")
+    return layout(fig, 380, "Requests per hour")

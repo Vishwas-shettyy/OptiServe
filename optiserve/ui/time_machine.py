@@ -1,89 +1,74 @@
 """Time Machine page: how the plan would have done on last week's real demand."""
 
-import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
-from engine.pipeline import ScenarioResult
-from ui.forecast_plan import ACTUAL_COLOR, CURRENT_COLOR, PLANNED_COLOR, _layout
-from ui.overview import money
-from ui.styles import ACCENT
+from engine.pipeline import ScenarioResult, ServiceResult
+from ui import charts, components
+from ui.components import money, money_short
 
-SHORT_COLOR = "#ef4444"
-
-
-def tile(label: str, fixed: str, plan: str) -> str:
-    """Return HTML for a fixed-vs-OptiServe comparison tile."""
-    return (f'<div class="os-tile"><div class="label">{label}</div>'
-            f'<div class="row"><span>Fixed</span><b>{fixed}</b></div>'
-            f'<div class="row"><span>OptiServe</span><b style="color:{PLANNED_COLOR}">{plan}</b></div></div>')
+HELD_BACK = "Savings held back: a server is unhealthy, so OptiServe keeps capacity. Reliability first."
 
 
-def render_tiles(bt: dict) -> None:
-    """Draw the cost, savings, shortfall and over-provisioning tiles."""
-    cols = st.columns(4)
-    cols[0].markdown(tile("Cost of test week", money(bt["cost_fixed"]), money(bt["cost_plan"])), unsafe_allow_html=True)
-    color = PLANNED_COLOR if bt["savings_pct"] >= 0 else SHORT_COLOR
-    cols[1].markdown(f'<div class="os-tile"><div class="label">Savings</div>'
-                     f'<div class="big" style="color:{color}">{bt["savings_pct"]:.1f}%</div></div>',
-                     unsafe_allow_html=True)
-    cols[2].markdown(tile("Shortfall hours", str(bt["shortfall_hours_fixed"]), str(bt["shortfall_hours_plan"])),
-                     unsafe_allow_html=True)
-    cols[3].markdown(tile("Over-provisioned hours", str(bt["overprov_hours_fixed"]), str(bt["overprov_hours_plan"])),
-                     unsafe_allow_html=True)
+def insight(sr: ServiceResult) -> tuple[str, str]:
+    """Return (sentence, tone) summarising the replayed week."""
+    bt = sr.backtest
+    blocked = any(g["status"] == "blocked" for g in sr.guardrails)
+    if blocked and abs(bt["savings_pct"]) < 1e-9:
+        return HELD_BACK, "info"
+    saved = bt["cost_fixed"] - bt["cost_plan"]
+    short_p, short_f = bt["shortfall_hours_plan"], bt["shortfall_hours_fixed"]
+    if saved > 0:
+        return (f"Last week OptiServe would have saved {money(saved)} ({bt['savings_pct']:.0f}%) with "
+                f"{short_p} hours short of capacity (fixed setup: {short_f}).", "success" if short_p <= short_f else "warning")
+    if short_p < short_f:
+        return (f"OptiServe would have spent {money(-saved)} more last week but cut hours short of capacity "
+                f"from {short_f} to {short_p}.", "info")
+    return "Last week OptiServe would have matched the fixed setup.", "neutral"
 
 
-def test_week_chart(series: pd.DataFrame) -> go.Figure:
-    """Return the test-week chart with shortfall hours marked in red."""
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=series["timestamp"], y=series["capacity_fixed"], name="Fixed capacity",
-                             line=dict(color=CURRENT_COLOR, dash="dash", shape="hv")))
-    fig.add_trace(go.Scatter(x=series["timestamp"], y=series["capacity_plan"], name="OptiServe capacity",
-                             line=dict(color=PLANNED_COLOR, width=2, shape="hv")))
-    fig.add_trace(go.Scatter(x=series["timestamp"], y=series["actual"], name="Actual demand",
-                             line=dict(color=ACTUAL_COLOR, width=1.6)))
-    for col, name, symbol in (("capacity_fixed", "Shortfall (fixed)", "x"), ("capacity_plan", "Shortfall (OptiServe)", "circle")):
-        short = series[series["actual"] > series[col]]
-        if not short.empty:
-            fig.add_trace(go.Scatter(x=short["timestamp"], y=short["actual"], mode="markers", name=name,
-                                     marker=dict(color=SHORT_COLOR, size=8, symbol=symbol)))
-    for ts in series.loc[series["actual"] > series["capacity_plan"], "timestamp"]:
-        fig.add_vrect(x0=ts, x1=ts + pd.Timedelta(hours=1), fillcolor=SHORT_COLOR, opacity=0.18,
-                      line_width=0, layer="below")
-    return _layout(fig, 420, "Requests / sec")
-
-
-def wape_card(bt: dict) -> str:
-    """Return HTML comparing OptiServe and naive forecast error (WAPE)."""
+def render_service(sr: ServiceResult) -> None:
+    """Draw the backtest for one service."""
+    bt = sr.backtest
+    components.insight_banner(*insight(sr))
+    saved = bt["cost_fixed"] - bt["cost_plan"]
     ours, naive = bt["wape_optiserve"] * 100, bt["wape_naive"] * 100
-    width = max(ours, naive, 1e-9)
-
-    def bar(v: float, c: str) -> str:
-        """Return a horizontal bar sized relative to the larger WAPE."""
-        return (f'<div style="background:#1f2937;border-radius:6px;height:8px;margin:.2rem 0 .5rem">'
-                f'<div style="width:{v / width * 100:.0f}%;background:{c};height:8px;border-radius:6px"></div></div>')
-
-    verdict = "more accurate" if ours <= naive else "less accurate"
-    return (f'<div class="os-card"><h4>Forecast accuracy: OptiServe vs naive</h4>'
-            f'<p>WAPE (lower is better)</p>'
-            f'<p>OptiServe <b>{ours:.1f}%</b></p>{bar(ours, ACCENT)}'
-            f'<p>Naive (same hour last week) <b>{naive:.1f}%</b></p>{bar(naive, CURRENT_COLOR)}'
-            f'<p style="color:#94a3b8;font-size:.85rem">OptiServe is {abs(naive - ours):.1f} pts {verdict}.</p></div>')
+    components.kpi_row([
+        dict(label="Saved in test week", value=money_short(saved), hint=f"{bt['savings_pct']:.1f}% vs fixed setup",
+             tone="success" if saved > 0 else "neutral", tooltip=money(saved)),
+        dict(label="Hours short of capacity", value=str(bt["shortfall_hours_plan"]),
+             hint=f"Fixed setup: {bt['shortfall_hours_fixed']}",
+             tone="danger" if bt["shortfall_hours_plan"] > bt["shortfall_hours_fixed"] else "success"),
+        dict(label="Hours with idle capacity", value=str(bt["overprov_hours_plan"]),
+             hint=f"Fixed setup: {bt['overprov_hours_fixed']}"),
+        dict(label="Forecast error", value=f"{ours:.1f}%", hint=f"Simple method: {naive:.1f}%",
+             tone="success" if ours <= naive else "warning"),
+    ])
+    components.before_after([
+        ("Cost of the week", bt["cost_fixed"], bt["cost_plan"], "money"),
+        ("Hours short of capacity", bt["shortfall_hours_fixed"], bt["shortfall_hours_plan"], "hours"),
+        ("Hours with idle capacity", bt["overprov_hours_fixed"], bt["overprov_hours_plan"], "hours"),
+    ])
+    left, right = st.columns([2, 1], gap="large")
+    with left:
+        components.section("Replayed test week", "Real demand against both setups; red hours ran short of capacity.")
+        st.plotly_chart(charts.test_week_chart(bt["series"]), width="stretch", theme=None, key=f"tm_{sr.service}")
+    with right:
+        components.section("Forecast accuracy", "Average error per hour; lower is better.")
+        better = "more" if ours <= naive else "less"
+        components.compare_bars(f"OptiServe {ours:.1f}% vs simple method {naive:.1f}%", [
+            ("OptiServe", ours, charts.EXPECTED_COLOR),
+            ("Simple method (same hour last week)", naive, charts.CURRENT_COLOR),
+        ], f"OptiServe is {abs(naive - ours):.1f} points {better} accurate.")
 
 
 def render(result: ScenarioResult) -> None:
     """Draw the Time Machine page."""
-    st.title("Time Machine")
-    st.markdown('<div class="os-story">We trained on the first three weeks, then replayed the last week: '
-                'what if OptiServe had been running the fleet?</div>', unsafe_allow_html=True)
+    components.page_header("Time Machine", "Trained on the first three weeks, then replayed the last one: what if "
+                                           "OptiServe had run the fleet?", result.scenario.title)
     services = [s for s, sr in result.services.items() if sr.backtest]
     if not services:
-        st.info("No services to backtest in this scenario.")
+        components.text_card("Nothing to replay", "This scenario has no active services to backtest.")
         return
     for tab, name in zip(st.tabs(services), services):
-        bt = result.services[name].backtest
         with tab:
-            render_tiles(bt)
-            left, right = st.columns([3, 1.1])
-            left.plotly_chart(test_week_chart(bt["series"]), width="stretch", key=f"tm_{name}")
-            right.markdown(wape_card(bt), unsafe_allow_html=True)
+            render_service(result.services[name])
