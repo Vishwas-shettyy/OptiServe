@@ -172,8 +172,8 @@ critical = Risky server; warning = forecast hour where high > current*capacity_r
 
 ## 10. backtest.py
 
-`run_backtest(history, events, current, capacity_rps, monthly_cost, risk) -> dict`:
-train = first TRAIN_DAYS days, test = last 7 days. Forecast the test week from train (events known), plan + guardrails (no health rule), compare with fixed `current`.
+`run_backtest(history, events, current, capacity_rps, monthly_cost, risk, profile_service=None) -> dict`:
+train = first TRAIN_DAYS days, test = last 7 days. Forecast the test week from train (events known), plan + guardrails (Health rule applied when `profile_service` has a Risky server, so the backtest matches the live plan), compare with fixed `current`.
 Return: `cost_fixed, cost_plan, savings_pct, shortfall_hours_fixed, shortfall_hours_plan, overprov_hours_fixed, overprov_hours_plan, wape_optiserve, wape_naive, series` where `series` = DataFrame `timestamp, actual, capacity_fixed, capacity_plan`.
 shortfall hour = actual > servers*capacity_rps; overprov hour = actual/(servers*capacity_rps) < OVERPROV_UTIL; cost = server-hours * monthly_cost/HOURS_PER_MONTH.
 

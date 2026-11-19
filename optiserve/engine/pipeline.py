@@ -51,7 +51,8 @@ def _service_result(
     raw = planner.build_plan(fc, current, capacity, params["target_util"])
     span = history["timestamp"].max() - history["timestamp"].min()
     history_days = int(round(span / pd.Timedelta(days=1))) + 1
-    plan, rules = guardrails.apply_guardrails(raw, fc, profile[profile["service"] == service], history_days, current)
+    prof = profile[profile["service"] == service]
+    plan, rules = guardrails.apply_guardrails(raw, fc, prof, history_days, current)
     rec = planner.recommend(plan, monthly_cost, current)
     return ServiceResult(
         service=service,
@@ -61,7 +62,7 @@ def _service_result(
         guardrails=rules,
         recommendation=rec,
         explanation=explainer.explain(service, rec, rules, risk),
-        backtest=backtest.run_backtest(history, sc.events, current, capacity, monthly_cost, risk),
+        backtest=backtest.run_backtest(history, sc.events, current, capacity, monthly_cost, risk, prof),
         anomalies=anomalies,
     )
 

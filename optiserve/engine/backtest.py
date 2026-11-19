@@ -26,8 +26,9 @@ def run_backtest(
     capacity_rps: float,
     monthly_cost: float,
     risk: float,
+    profile_service: pd.DataFrame | None = None,
 ) -> dict:
-    """Compare planned vs fixed capacity on the held-out week."""
+    """Compare planned vs fixed capacity on the held-out week, with the Health rule when a server is Risky."""
     hist = history.sort_values("timestamp").reset_index(drop=True)
     split = hist["timestamp"].min() + pd.Timedelta(days=config.TRAIN_DAYS)
     train = hist[hist["timestamp"] < split]
@@ -35,8 +36,8 @@ def run_backtest(
     params = config.risk_params(risk)
     fc, _ = forecast_service(train, events, split, len(test), params["z"])
     raw = build_plan(fc, current, capacity_rps, params["target_util"])
-    no_health = pd.DataFrame(columns=["server_id", "status"])
-    plan, _ = apply_guardrails(raw, fc, no_health, config.TRAIN_DAYS, current)
+    health = profile_service if profile_service is not None else pd.DataFrame(columns=["server_id", "status"])
+    plan, _ = apply_guardrails(raw, fc, health, config.TRAIN_DAYS, current)
     actual = test["requests"].to_numpy(dtype=float)
     planned = plan["planned"].to_numpy(dtype=int)
     fixed = np.full(len(actual), int(current))

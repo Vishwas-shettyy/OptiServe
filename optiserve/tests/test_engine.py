@@ -386,7 +386,7 @@ def test_acceptance_forgotten_servers() -> None:
 
 
 def test_acceptance_sick_server() -> None:
-    """pay-07 Risky, health blocked, min planned >= 8, critical alert, spike anomaly detected."""
+    """pay-07 Risky, health blocked in plan and backtest, min planned >= 8, critical alert, spike anomaly."""
     res = _run("sick_server")
     sr = res.services["payments-api"]
     p = res.profile.set_index("server_id")
@@ -398,3 +398,6 @@ def test_acceptance_sick_server() -> None:
     spike = pd.Timestamp("2026-10-29 14:00")
     assert any(abs(a["timestamp"] - spike) <= pd.Timedelta(hours=2) for a in sr.anomalies)
     assert any(a["severity"] == "warning" and "Unusual traffic" in a["message"] for a in res.alerts)
+    bt = sr.backtest
+    assert (bt["series"]["capacity_plan"] >= bt["series"]["capacity_fixed"]).all()
+    assert abs(bt["savings_pct"]) <= 1.0 and bt["shortfall_hours_plan"] == 0
