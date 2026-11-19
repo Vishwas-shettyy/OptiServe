@@ -78,5 +78,6 @@ def render(result: ScenarioResult) -> None:
         rec = sr.recommendation
         components.recommendation_card(name, str(rec["action"]), rec["current"], rec["planned_min"],
                                        rec["planned_max"], rec["savings_monthly"], rec["savings_pct"])
-        components.text_card("Why", sr.explanation)
+        with st.expander("Why this plan?", expanded=False):
+            st.write(sr.explanation)
         components.checklist("Safety checks", sr.guardrails)
