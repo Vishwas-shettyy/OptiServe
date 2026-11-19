@@ -1,12 +1,12 @@
-"""forecast_plan page."""
+"""Forecast & Plan page (placeholder)."""
 
-import plotly.graph_objects as go
 import streamlit as st
 
-from engine import config
 from engine.pipeline import ScenarioResult
 
 
 def render(result: ScenarioResult) -> None:
-    """Draw the forecast_plan page."""
-    raise NotImplementedError
+    """Draw a 'coming next' placeholder for the Forecast & Plan page."""
+    st.title("Forecast & Plan")
+    st.markdown('<div class="os-card os-placeholder"><h4>Coming next</h4>'
+                '<p>This page is under construction.</p></div>', unsafe_allow_html=True)

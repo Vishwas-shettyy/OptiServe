@@ -1,12 +1,12 @@
-"""time_machine page."""
+"""Time Machine page (placeholder)."""
 
-import plotly.graph_objects as go
 import streamlit as st
 
-from engine import config
 from engine.pipeline import ScenarioResult
 
 
 def render(result: ScenarioResult) -> None:
-    """Draw the time_machine page."""
-    raise NotImplementedError
+    """Draw a 'coming next' placeholder for the Time Machine page."""
+    st.title("Time Machine")
+    st.markdown('<div class="os-card os-placeholder"><h4>Coming next</h4>'
+                '<p>This page is under construction.</p></div>', unsafe_allow_html=True)
