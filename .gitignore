@@ -1,0 +1,22 @@
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local tooling and generated files
+.DS_Store
+*.log
+.coverage
+htmlcov/
+dist/
+build/
+node_modules/
