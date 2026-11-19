@@ -18,23 +18,32 @@ def money(value: float) -> str:
     return f"{config.CURRENCY}{value:,.0f}"
 
 
-def kpi_tile(label: str, value: str, hint: str) -> str:
-    """Return HTML for one KPI tile."""
+def money_short(value: float) -> str:
+    """Format a rupee amount compactly, like ₹46.5K or ₹1.2M."""
+    for size, suffix in ((1e6, "M"), (1e3, "K")):
+        if abs(value) >= size:
+            return f"{config.CURRENCY}{value / size:.1f}{suffix}"
+    return money(value)
+
+
+def kpi_tile(label: str, value: str, hint: str, full: str = "") -> str:
+    """Return HTML for one KPI tile; `full` is shown as a hover tooltip on the value."""
+    tip = f' title="{html.escape(full)}"' if full else ""
     return (f'<div class="os-kpi"><div class="label">{html.escape(label)}</div>'
-            f'<div class="value">{html.escape(value)}</div><div class="hint">{html.escape(hint)}</div></div>')
+            f'<div class="value"{tip}>{html.escape(value)}</div><div class="hint">{html.escape(hint)}</div></div>')
 
 
 def render_kpis(result: ScenarioResult) -> None:
     """Draw the four headline KPI tiles."""
     k = result.kpis
     tiles = [
-        ("Monthly cost", money(k["monthly_cost"]), "All servers, current setup"),
-        ("Average utilisation", f"{k['avg_util']:.1f}%", "Mean CPU, active servers, last 14 days"),
-        ("Waste score", f"{k['waste_score']:.1f}%", f"{k['zombies']} zombie(s), {k['risky']} risky"),
-        ("Potential savings", f"{money(k['potential_savings'])}/mo", "Zombies + right-sizing"),
+        ("Monthly cost", money_short(k["monthly_cost"]), "All servers today", money(k["monthly_cost"])),
+        ("Avg CPU", f"{k['avg_util']:.1f}%", "Active servers, 14 days", ""),
+        ("Waste score", f"{k['waste_score']:.1f}%", f"{k['zombies']} zombie · {k['risky']} risky", ""),
+        ("Savings / mo", money_short(k["potential_savings"]), "Zombies + right-sizing", money(k["potential_savings"])),
     ]
-    for col, (label, value, hint) in zip(st.columns(4), tiles):
-        col.markdown(kpi_tile(label, value, hint), unsafe_allow_html=True)
+    for col, (label, value, hint, full) in zip(st.columns(4), tiles):
+        col.markdown(kpi_tile(label, value, hint, full), unsafe_allow_html=True)
 
 
 def status_chart(result: ScenarioResult) -> go.Figure:

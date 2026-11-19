@@ -25,10 +25,12 @@ section[data-testid="stSidebar"] {{ background: #0f172a; border-right: 1px solid
 .os-card p {{ margin: 0; color: #cbd5e1; line-height: 1.5; }}
 .os-story {{ color: #94a3b8; font-size: .95rem; margin-bottom: 1.2rem; }}
 .os-kpi {{ background: linear-gradient(160deg, #111827, #0f172a); border: 1px solid #1f2937;
-  border-radius: 14px; padding: 1rem 1.2rem; height: 100%; }}
-.os-kpi .label {{ color: #94a3b8; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; }}
-.os-kpi .value {{ color: #f8fafc; font-size: 1.7rem; font-weight: 700; margin-top: .2rem; }}
-.os-kpi .hint {{ color: #64748b; font-size: .75rem; margin-top: .2rem; }}
+  border-radius: 14px; padding: .9rem 1rem; height: 100%; min-width: 0; }}
+.os-kpi .label, .os-kpi .value, .os-kpi .hint {{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.os-kpi .label {{ color: #94a3b8; font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; }}
+.os-kpi .value {{ color: #f8fafc; font-size: clamp(1.15rem, 1.8vw, 1.5rem); font-weight: 700; margin-top: .2rem;
+  font-variant-numeric: tabular-nums; }}
+.os-kpi .hint {{ color: #64748b; font-size: .72rem; margin-top: .2rem; }}
 .os-chip {{ display: inline-block; padding: .1rem .6rem; border-radius: 999px; font-size: .72rem;
   font-weight: 600; border: 1px solid currentColor; margin-right: .3rem; }}
 .os-alert {{ border-radius: 10px; padding: .6rem .9rem; margin-bottom: .5rem; background: #111827;
