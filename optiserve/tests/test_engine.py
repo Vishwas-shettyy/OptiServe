@@ -126,3 +126,59 @@ def test_sick_server_profile() -> None:
     p = _profile("sick_server").set_index("server_id")
     assert p.loc["pay-07", "status"] == "Risky"
     assert "memory" in p.loc["pay-07", "reason"].lower()
+
+
+def _forecast(key: str) -> tuple:
+    """Return (scenario, demand, forecast, anomalies) for a scenario's first service."""
+    from engine import config
+    from engine.data_gen import load_scenario
+    from engine.forecaster import forecast_service, service_demand
+
+    sc = load_scenario(key)
+    demand = service_demand(sc.metrics, sc.servers)
+    service = next(iter(sc.current_servers))
+    hist = demand[demand["service"] == service]
+    start = hist["timestamp"].max() + pd.Timedelta(hours=1)
+    fc, anomalies = forecast_service(hist, sc.events, start, config.FORECAST_HOURS)
+    return sc, hist, fc, anomalies
+
+
+@pytest.mark.parametrize("key", ["office_hours", "flash_sale", "forgotten_servers", "sick_server"])
+def test_forecast_shape_and_bands(key: str) -> None:
+    """Forecast has 168 rows, the section 3 columns and low <= expected <= high."""
+    _, hist, fc, _ = _forecast(key)
+    assert list(fc.columns) == ["timestamp", "expected", "low", "high", "mem_high", "is_event"]
+    assert len(fc) == 168
+    assert fc["timestamp"].iloc[0] == pd.Timestamp("2026-11-16 00:00")
+    assert (fc["low"] <= fc["expected"]).all() and (fc["expected"] <= fc["high"]).all()
+    assert (fc["low"] >= 0).all()
+    assert set(hist.columns) == {"timestamp", "service", "requests", "mem_load_eq"}
+
+
+def test_flash_sale_forecast_event() -> None:
+    """Festive sale hour high is at least 4x the same hour the day before."""
+    _, _, fc, _ = _forecast("flash_sale")
+    high = fc.set_index("timestamp")["high"]
+    assert high[pd.Timestamp("2026-11-20 20:00")] >= 4 * high[pd.Timestamp("2026-11-19 20:00")]
+    assert fc.set_index("timestamp").loc[pd.Timestamp("2026-11-20 20:00"), "is_event"]
+
+
+def test_sick_server_spike_anomaly() -> None:
+    """The payments spike at 2026-10-29 14:00 is detected as an anomaly."""
+    _, _, _, anomalies = _forecast("sick_server")
+    stamps = {a["timestamp"] for a in anomalies}
+    assert pd.Timestamp("2026-10-29 14:00") in stamps
+    assert all(set(a) == {"timestamp", "value", "expected"} for a in anomalies)
+
+
+def test_naive_and_wape() -> None:
+    """Naive forecast repeats last week; wape is zero for a perfect forecast."""
+    from engine.forecaster import naive_forecast, wape
+
+    _, hist, _, _ = _forecast("office_hours")
+    start = pd.Timestamp("2026-11-09 00:00")
+    naive = naive_forecast(hist[hist["timestamp"] < start], start, 168)
+    expected = hist.set_index("timestamp")["requests"].loc["2026-11-02":"2026-11-08"].to_numpy()
+    assert len(naive) == 168 and (naive.to_numpy() == expected).all()
+    assert wape(pd.Series([10.0, 20.0]), pd.Series([10.0, 20.0])) == 0.0
+    assert wape(pd.Series([10.0, 10.0]), pd.Series([5.0, 15.0])) == 0.5
