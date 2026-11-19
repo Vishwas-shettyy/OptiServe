@@ -286,3 +286,115 @@ def test_build_alerts() -> None:
     res = {"payments-api": SimpleNamespace(forecast=fc, plan=plan, anomalies=[])}
     alerts = build_alerts(profile_servers(sc.metrics, sc.servers), res)
     assert alerts[0]["severity"] == "critical" and "pay-07" in alerts[0]["message"]
+
+
+# ---- Section 14 acceptance tests (full pipeline) ----
+
+KEYS = ["office_hours", "flash_sale", "forgotten_servers", "sick_server"]
+_RESULTS: dict = {}
+
+
+def _run(key: str, risk: float = 0.5):
+    """Return a cached run_scenario result."""
+    from engine.pipeline import run_scenario
+
+    if (key, risk) not in _RESULTS:
+        _RESULTS[(key, risk)] = run_scenario(key, risk)
+    return _RESULTS[(key, risk)]
+
+
+def _plan_cost(res) -> float:
+    """Return total planned monthly cost across services."""
+    return sum(sr.recommendation["planned_monthly"] for sr in res.services.values())
+
+
+@pytest.mark.parametrize("key", KEYS)
+def test_run_scenario_fast_and_deterministic(key: str) -> None:
+    """run_scenario finishes in < 5 s and two runs give identical output."""
+    import time
+
+    from engine.pipeline import run_scenario
+
+    t0 = time.perf_counter()
+    a = run_scenario(key)
+    assert time.perf_counter() - t0 < 5.0
+    b = run_scenario(key)
+    assert a.kpis == b.kpis and a.alerts == b.alerts
+    pd.testing.assert_frame_equal(a.profile, b.profile)
+    for name in a.services:
+        sa, sb = a.services[name], b.services[name]
+        pd.testing.assert_frame_equal(sa.forecast, sb.forecast)
+        pd.testing.assert_frame_equal(sa.plan, sb.plan)
+        assert sa.recommendation == sb.recommendation and sa.explanation == sb.explanation
+        pd.testing.assert_frame_equal(sa.backtest["series"], sb.backtest["series"])
+
+
+@pytest.mark.parametrize("key", KEYS)
+def test_risk_cost_monotonic(key: str) -> None:
+    """Plan cost at risk 0.0 is no more than at risk 1.0."""
+    assert _plan_cost(_run(key, 0.0)) <= _plan_cost(_run(key, 1.0))
+
+
+@pytest.mark.parametrize("key", KEYS)
+def test_result_contract(key: str) -> None:
+    """KPIs, backtest and explanation have the section 10–12 shape."""
+    res = _run(key)
+    assert set(res.kpis) == {"monthly_cost", "avg_util", "waste_score", "potential_savings", "zombies", "risky"}
+    for sr in res.services.values():
+        assert {"cost_fixed", "cost_plan", "savings_pct", "shortfall_hours_fixed", "shortfall_hours_plan",
+                "overprov_hours_fixed", "overprov_hours_plan", "wape_optiserve", "wape_naive", "series"} == set(sr.backtest)
+        assert list(sr.backtest["series"].columns) == ["timestamp", "actual", "capacity_fixed", "capacity_plan"]
+        assert len(sr.backtest["series"]) == 168
+        assert "₹" in sr.explanation and "Risk setting" in sr.explanation
+    order = {"critical": 0, "warning": 1, "info": 2}
+    assert [order[a["severity"]] for a in res.alerts] == sorted(order[a["severity"]] for a in res.alerts)
+
+
+def test_acceptance_office_hours() -> None:
+    """Night plan <= 3, backtest saves >= 30% with no shortfall, legacy Zombie, hr-portal mostly Wasteful."""
+    res = _run("office_hours")
+    sr = res.services["hr-portal"]
+    ts = sr.plan["timestamp"].dt
+    assert (sr.plan.loc[(ts.day_of_week < 5) & (ts.hour <= 5), "planned"] <= 3).all()
+    assert sr.backtest["savings_pct"] >= 30
+    assert sr.backtest["shortfall_hours_plan"] == 0
+    p = res.profile
+    assert (p.loc[p["service"] == "legacy", "status"] == "Zombie").all()
+    assert (p.loc[p["service"] == "hr-portal", "status"] == "Wasteful").mean() > 0.5
+    assert sr.backtest["wape_optiserve"] <= sr.backtest["wape_naive"] * 1.05
+    assert "Balanced" in sr.explanation and "hr-portal: run" in sr.explanation
+
+
+def test_acceptance_flash_sale() -> None:
+    """Sale forecast x4, planned > 10 at 18:00, shortfall warning, backtest beats fixed."""
+    res = _run("flash_sale")
+    sr = res.services["shop-web"]
+    high = sr.forecast.set_index("timestamp")["high"]
+    assert high[pd.Timestamp("2026-11-20 20:00")] >= 4 * high[pd.Timestamp("2026-11-19 20:00")]
+    assert sr.plan.set_index("timestamp").loc[pd.Timestamp("2026-11-20 18:00"), "planned"] > 10
+    assert any(a["severity"] == "warning" and "Capacity shortfall expected" in a["message"] for a in res.alerts)
+    assert sr.backtest["shortfall_hours_plan"] < sr.backtest["shortfall_hours_fixed"]
+
+
+def test_acceptance_forgotten_servers() -> None:
+    """Exactly 5 Zombies, waste score > 25, and an info alert about them."""
+    res = _run("forgotten_servers")
+    assert res.kpis["zombies"] == 5 and (res.profile["status"] == "Zombie").sum() == 5
+    assert res.kpis["waste_score"] > 25
+    assert any(a["severity"] == "info" and "5 zombie" in a["message"] for a in res.alerts)
+    assert res.kpis["potential_savings"] >= 25000
+
+
+def test_acceptance_sick_server() -> None:
+    """pay-07 Risky, health blocked, min planned >= 8, critical alert, spike anomaly detected."""
+    res = _run("sick_server")
+    sr = res.services["payments-api"]
+    p = res.profile.set_index("server_id")
+    assert p.loc["pay-07", "status"] == "Risky" and res.kpis["risky"] == 1
+    health = next(g for g in sr.guardrails if g["rule"] == "Health")
+    assert health["status"] == "blocked"
+    assert sr.plan["planned"].min() >= 8
+    assert res.alerts[0]["severity"] == "critical" and "pay-07" in res.alerts[0]["message"]
+    spike = pd.Timestamp("2026-10-29 14:00")
+    assert any(abs(a["timestamp"] - spike) <= pd.Timedelta(hours=2) for a in sr.anomalies)
+    assert any(a["severity"] == "warning" and "Unusual traffic" in a["message"] for a in res.alerts)
