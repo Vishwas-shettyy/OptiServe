@@ -44,6 +44,13 @@ PLANNED_COLOR = STATUS_COLORS["Right-sized"]
 EVENT_COLOR = STATUS_COLORS["Hot"]
 
 
+def daily(df: pd.DataFrame, col: str, how: str = "sum") -> list[float]:
+    """Aggregate an hourly column to one value per day, for sparklines."""
+    if df.empty:
+        return []
+    return df.set_index("timestamp")[col].resample("D").agg(how).dropna().tolist()
+
+
 def layout(fig: go.Figure, height: int, y_title: str = "") -> go.Figure:
     """Apply the optiserve style, a height and a y-axis title."""
     apply_style(fig, height)

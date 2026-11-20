@@ -48,7 +48,7 @@ def header(result: ScenarioResult, pages: list, current: object) -> None:
             st.download_button("Export report", plan_csv(result), file_name=f"optiserve_plan_{result.scenario.key}.csv",
                                mime="text/csv", icon=":material/download:", key="export_report")
         with clock:
-            components.datetime_block(f"{now:%a %d %b %Y}", f"{now:%H:%M}")
+            components.datetime_block(f"{now:%a %d %b}", f"{now:%H:%M}")
         with st.container(key="os_nav", horizontal=True, gap="small"):
             for page in pages:
                 active = page.title == current.title

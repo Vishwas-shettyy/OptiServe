@@ -33,8 +33,8 @@ def _md(markup: str) -> None:
 
 
 def _tone(tone: str) -> str:
-    """Return the colour for a tone name, defaulting to info."""
-    return TONE_COLORS.get(tone, ACCENT)
+    """Return the colour for a tone name (or a #hex colour), defaulting to info."""
+    return tone if tone.startswith("#") else TONE_COLORS.get(tone, ACCENT)
 
 
 def pill(text: str, color: str) -> str:
@@ -59,11 +59,13 @@ def glossary_tip(term: str, text: str) -> str:
     return f'<span class="os-tip" title="{_e(text)}">{_e(term)}</span>'
 
 
-def page_header(title: str, subtitle: str = "", chip: str = "") -> None:
-    """Render the page title, one-line subtitle and an optional chip on the right."""
+def page_header(title: str, subtitle: str = "", chip: str = "", icon_name: str = "") -> None:
+    """Render the page title with an optional icon tile, a one-line subtitle and an optional chip on the right."""
     sub = f'<div class="subtitle">{_e(subtitle)}</div>' if subtitle else ""
-    right = pill(chip, ACCENT) if chip else ""
-    _md(f'<div class="os-header"><div><div class="title">{_e(title)}</div>{sub}</div><div>{right}</div></div>')
+    tile = f'<span class="tile">{icon(icon_name, 22)}</span>' if icon_name else ""
+    right = f"<div>{pill(chip, ACCENT)}</div>" if chip else ""
+    _md(f'<div class="os-header"><div class="lead">{tile}<div><div class="title">{_e(title)}</div>{sub}</div></div>'
+        f'{right}</div>')
 
 
 def insight_banner(text: str, tone: str = "info") -> None:
@@ -93,16 +95,17 @@ def sparkline(values: Sequence[float], color: str, width: int = 72, height: int 
 
 
 def kpi_html(label: str, value: str, hint: str = "", tone: str = "neutral", tooltip: str = "", icon_name: str = "",
-             delta: str = "", delta_up: bool = True, delta_good: bool = True, spark: Sequence[float] = ()) -> str:
-    """Return HTML for one KPI card: icon tile, label, value, delta line and optional sparkline."""
+             delta: str = "", delta_up: bool = True, delta_good: bool | None = True,
+             spark: Sequence[float] = ()) -> str:
+    """Return HTML for one KPI card: icon tile, label, value, delta line (good/bad/None=caution), sparkline."""
     color = _tone(tone) if tone != "neutral" else TEXT_2
     tip = f' title="{_e(tooltip)}"' if tooltip else ""
     tile = (f'<div class="tile" style="color:{color};background:{tint(color, .10)}">{icon(icon_name, 22)}</div>'
             if icon_name else "")
     if delta:
-        dcol = TONE_COLORS["success"] if delta_good else TONE_COLORS["danger"]
-        foot = (f'<div class="delta"><span style="color:{dcol}">{"↑" if delta_up else "↓"}</span> '
-                f'{_e(delta)}</div>')
+        dcol = TONE_COLORS["warning" if delta_good is None else ("success" if delta_good else "danger")]
+        foot = (f'<div class="delta"><span class="arr" style="color:{dcol}">'
+                f'{icon("arrow-up" if delta_up else "arrow-down", 14)}</span><span>{_e(delta)}</span></div>')
     else:
         foot = f'<div class="hint">{_e(hint)}</div>'
     spark_svg = sparkline(spark, color) if len(spark) else ""
@@ -253,7 +256,8 @@ def checklist(title: str, items: Sequence[dict]) -> None:
         f'<div class="msg">{_e(it["message"])}</div></div></div>'
         for it in items
     )
-    _md(f'<div class="os-card"><h4>{_e(title)}</h4>{rows}</div>')
+    head = f"<h4>{_e(title)}</h4>" if title else ""
+    _md(f'<div class="os-card">{head}{rows}</div>')
 
 
 def alerts_feed(alerts: Sequence[dict]) -> None:
@@ -270,6 +274,7 @@ def alerts_feed(alerts: Sequence[dict]) -> None:
 # ---- Server Graveyard ----------------------------------------------------------
 
 EPITAPHS: dict[str, str] = {"Zombie": "R.I.P.", "Wasteful": "On notice", "Risky": "Do not bury"}
+STONE_ICONS: dict[str, str] = {"Zombie": "gravestone", "Wasteful": "alert-triangle", "Risky": "heart-pulse"}
 STATUS_PILL_ON_DARK: dict[str, str] = {"Zombie": "#C4B5FD", "Wasteful": "#FCD34D", "Risky": "#FCA5A5",
                                        "Hot": "#FDBA74", "Right-sized": "#86EFAC"}
 
@@ -279,6 +284,8 @@ def tombstone(name: str, instance_type: str, service: str, status: str, cost: fl
     """Return HTML for one tombstone; hovering shows the reason."""
     color = STATUS_COLORS.get(status, TEXT_2)
     return (f'<div class="os-stone" title="{_e(reason)}" style="border-top:3px solid {color}">'
+            f'<div class="ic" style="color:{STATUS_PILL_ON_DARK.get(status, color)}">'
+            f'{icon(STONE_ICONS.get(status, "server"), 22)}</div>'
             f'<div class="epitaph">{_e(EPITAPHS.get(status, status))}</div>'
             f'<div class="name">{_e(name)}</div>'
             f'<div class="meta">{_e(instance_type)} · {_e(service)}</div>'
@@ -292,9 +299,10 @@ def night_scene(total_wasted: float, counts: dict[str, int], stones: Sequence[st
     parts = " · ".join(f"{n} {EPITAPHS.get(s, s).lower()}" for s, n in counts.items())
     body = "".join(stones) or '<div class="os-empty-yard">The yard is empty — every server is earning its keep.</div>'
     _md(f'<div class="os-sky"><div class="os-moon"></div><div class="os-banner">'
-        f'<div class="small">Wasted every month</div><div class="big">{_e(money(total_wasted))}</div>'
+        f'<div class="small">{icon("flame", 16)} Wasted every month</div><div class="big">{_e(money(total_wasted))}</div>'
         f'<div class="small">{len(stones)} server(s) in the yard — {_e(parts)}</div></div>'
-        f'<div class="os-yard">{body}</div><div class="os-hint">Hover a stone to see why it is here.</div></div>')
+        f'<div class="os-yard">{body}</div><div class="os-hint">{icon("info", 14)} Hover a stone to see why it is here.'
+        f'</div></div>')
 
 
 def table_card(title: str, headers: Sequence[str], rows: Sequence[Sequence[str]], numeric: Sequence[int] = ()) -> None:
@@ -304,7 +312,8 @@ def table_card(title: str, headers: Sequence[str], rows: Sequence[Sequence[str]]
         return ' class="num"' if i in numeric else ""
     head = "".join(f"<th{cls(i)}>{_e(h)}</th>" for i, h in enumerate(headers))
     body = "".join("<tr>" + "".join(f"<td{cls(i)}>{c}</td>" for i, c in enumerate(r)) + "</tr>" for r in rows)
-    _md(f'<div class="os-card os-table-card"><h4>{_e(title)}</h4><div class="os-table-wrap">'
+    head = f"<h4>{_e(title)}</h4>" if title else ""
+    _md(f'<div class="os-card os-table-card">{head}<div class="os-table-wrap">'
         f'<table class="os-table"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div></div>')
 
 
@@ -321,9 +330,9 @@ def _delta(fixed: float, plan: float, fmt: str) -> str:
     if abs(diff) < 1e-9:
         return f'<span class="delta" style="color:{TEXT_2}">no change</span>'
     color = TONE_COLORS["success"] if diff < 0 else TONE_COLORS["danger"]
-    arrow = "▼" if diff < 0 else "▲"
+    arrow = icon("arrow-down" if diff < 0 else "arrow-up", 12)
     value = money(abs(diff)) if fmt == "money" else f"{abs(diff):,.0f} h"
-    return f'<span class="delta" style="color:{color};background:{tint(color)}">{arrow} {_e(value)}</span>'
+    return f'<span class="delta" style="color:{color};background:{tint(color)}">{arrow}{_e(value)}</span>'
 
 
 def before_after(metrics: Sequence[tuple[str, float, float, str]]) -> None:

@@ -12,11 +12,6 @@ SPARK_DAYS = 14
 MAX_ACTIONS = 7
 
 
-def _daily(df: pd.DataFrame, col: str, how: str = "sum") -> pd.Series:
-    """Aggregate an hourly column to days."""
-    return df.set_index("timestamp")[col].resample("D").agg(how)
-
-
 def fleet_series(result: ScenarioResult) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Return (last 7 days actual demand, next 7 days expected demand + current/planned capacity) for all services."""
     servers = result.scenario.servers
@@ -46,8 +41,8 @@ def kpi_sparks(result: ScenarioResult) -> dict[str, list[float]]:
     recent = metrics[metrics["timestamp"] > metrics["timestamp"].max() - pd.Timedelta(days=SPARK_DAYS)]
     out: dict[str, list[float]] = {"demand": [], "cpu": [], "idle": [], "saving": []}
     if not recent.empty:
-        out["demand"] = _daily(recent, "requests").tolist()
-        out["cpu"] = _daily(recent, "cpu_pct", "mean").tolist()
+        out["demand"] = charts.daily(recent, "requests")
+        out["cpu"] = charts.daily(recent, "cpu_pct", "mean")
     services = {n: sr for n, sr in result.services.items() if not sr.plan.empty}
     if not services:
         return out
@@ -60,7 +55,7 @@ def kpi_sparks(result: ScenarioResult) -> dict[str, list[float]]:
     out["idle"] = (100 - day["requests"] / day["cap"].where(day["cap"] > 0) * 100).clip(lower=0).fillna(0).tolist()
     plans = pd.concat([sr.plan.assign(saved=(sr.plan["current"] - sr.plan["planned"]) * costs[n]
                                       / config.HOURS_PER_MONTH) for n, sr in services.items()])
-    out["saving"] = _daily(plans, "saved").tolist()
+    out["saving"] = charts.daily(plans, "saved")
     return out
 
 

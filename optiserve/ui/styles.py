@@ -85,6 +85,11 @@ h2, h3 {{ font-size: 18px !important; font-weight: 600 !important; color: {TEXT}
   color: {ACCENT}; font-weight: 600; padding: 4px 14px; min-height: 36px; white-space: nowrap; }}
 .st-key-os_header .stDownloadButton button:hover {{ background: {ACCENT_TINT}; }}
 .st-key-os_header .stDownloadButton {{ display: flex; justify-content: flex-end; }}
+/* header columns size to their content; the brand column takes the rest so nothing is cut */
+.st-key-os_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]) > [data-testid="stColumn"]
+{{ flex: 0 0 auto !important; width: auto !important; min-width: 0; }}
+.st-key-os_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]) > [data-testid="stColumn"]:first-child
+{{ flex: 1 1 0 !important; }}
 
 /* ---- nav pills ---- */
 .st-key-os_nav {{ border-top: 1px solid rgba(15,23,42,.06); padding-top: 8px; margin-top: 2px; }}
@@ -106,16 +111,16 @@ h2, h3 {{ font-size: 18px !important; font-weight: 600 !important; color: {TEXT}
 /* ---- motion: lift on hover, press on tap, respect reduced motion ---- */
 @keyframes os-rise {{ from {{ opacity: 0; transform: translateY(6px); }} to {{ opacity: 1; transform: none; }} }}
 .os-card, .os-kpi, .os-banner-insight, .os-alert, .os-action {{ animation: os-rise .25s ease-out both; }}
-.os-card, .os-kpi, .os-alert, .os-action, .os-stone, [data-testid="stVerticalBlockBorderWrapper"],
+.os-card, .os-kpi, .os-alert, .os-action, .os-stone, .os-banner-insight, [data-testid="stVerticalBlockBorderWrapper"],
 [class*="st-key-card_"] {{ transition: transform .2s ease, box-shadow .2s ease; }}
-.os-card:hover, .os-kpi:hover, .os-alert:hover, .os-stone:hover, [data-testid="stVerticalBlockBorderWrapper"]:hover,
+.os-card:hover, .os-kpi:hover, .os-alert:hover, .os-stone:hover, .os-banner-insight:hover, [data-testid="stVerticalBlockBorderWrapper"]:hover,
 [class*="st-key-card_"]:hover {{ transform: translateY(-4px); box-shadow: {HOVER_SHADOW}; }}
 .os-action:hover {{ transform: translateY(-2px); box-shadow: {HOVER_SHADOW}; }}
 .os-card:active, .os-kpi:active, .os-alert:active, .os-action:active, .os-stone:active,
 [data-testid="stVerticalBlockBorderWrapper"]:active, [class*="st-key-card_"]:active {{ transform: scale(.98); }}
 @media (prefers-reduced-motion: reduce) {{
   *, *::before, *::after {{ animation: none !important; transition: none !important; }}
-  .os-card:hover, .os-kpi:hover, .os-alert:hover, .os-action:hover, .os-stone:hover,
+  .os-card:hover, .os-kpi:hover, .os-alert:hover, .os-action:hover, .os-stone:hover, .os-banner-insight:hover,
   [data-testid="stVerticalBlockBorderWrapper"]:hover, [class*="st-key-card_"]:hover,
   .os-card:active, .os-kpi:active, .os-alert:active, .os-action:active, .os-stone:active,
   [class*="st-key-card_"]:active {{ transform: none !important; }}
@@ -130,6 +135,15 @@ h2, h3 {{ font-size: 18px !important; font-weight: 600 !important; color: {TEXT}
 .os-card-title .ic {{ color: {ACCENT}; display: inline-flex; }}
 .os-card-title .help {{ color: {TEXT_2}; font-size: 13px; margin-top: 2px; }}
 .os-card-title .right {{ display: flex; gap: 6px; flex-wrap: wrap; }}
+/* HTML cards nested in a card container drop their own chrome so cards never stack */
+[class*="st-key-card_"] .os-card {{ background: transparent; border: 0; box-shadow: none; padding: 0;
+  margin: 12px 0 4px; animation: none; }}
+[class*="st-key-card_"] .os-card:hover, [class*="st-key-card_"] .os-card:active {{ transform: none; box-shadow: none; }}
+[class*="st-key-card_"] .os-table-card {{ margin: 8px -20px 0; }}
+[class*="st-key-card_"] .os-table th:first-child, [class*="st-key-card_"] .os-table td:first-child {{ padding-left: 20px; }}
+[class*="st-key-card_"] .os-table th:last-child, [class*="st-key-card_"] .os-table td:last-child {{ padding-right: 20px; }}
+[class*="st-key-card_"] [data-testid="stExpander"] details {{ border-radius: 12px; border-color: {BORDER}; }}
+[class*="st-key-card_"] .os-sky {{ margin-top: 12px; border-radius: 14px; }}
 
 /* ---- priority actions ---- */
 .os-actions {{ display: grid; gap: 8px; }}
@@ -137,8 +151,8 @@ h2, h3 {{ font-size: 18px !important; font-weight: 600 !important; color: {TEXT}
   border: 1px solid {BORDER}; border-radius: 12px; padding: 10px 12px; background: {SURFACE}; cursor: pointer; }}
 .os-action .what {{ min-width: 0; }}
 .os-action .pillcol {{ margin-bottom: 4px; }}
-.os-action .name {{ font-weight: 600; font-size: 14px; color: {TEXT}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
-.os-action .detail {{ color: {TEXT_2}; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.os-action .name {{ font-weight: 600; font-size: 14px; color: {TEXT}; overflow-wrap: anywhere; }}
+.os-action .detail {{ color: {TEXT_2}; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }}
 .os-action .amt {{ font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }}
 .os-action .chev {{ color: {MUTED}; display: inline-flex; }}
 .os-action:hover .chev {{ color: {ACCENT}; }}
@@ -165,8 +179,11 @@ h2, h3 {{ font-size: 18px !important; font-weight: 600 !important; color: {TEXT}
 .os-check .msg {{ color: {TEXT_2}; font-size: 13px; line-height: 1.45; margin-top: 2px; }}
 
 /* ---- page header & section ---- */
-.os-header {{ display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;
-  margin-bottom: 16px; }}
+.os-header {{ display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+  margin: 8px 0 12px; }}
+.os-header .lead {{ display: flex; align-items: center; gap: 14px; min-width: 0; }}
+.os-header .tile {{ width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; flex: none;
+  color: {ACCENT}; background: {ACCENT_TINT}; box-shadow: inset 0 0 0 1px rgba(37,99,235,.12); }}
 .os-header .title {{ font-size: 28px; font-weight: 700; color: {TEXT}; line-height: 1.2; letter-spacing: -.01em; }}
 .os-header .subtitle {{ color: {TEXT_2}; font-size: 14px; margin-top: 4px; }}
 .os-section {{ margin: 24px 0 8px 0; }}
@@ -193,12 +210,13 @@ h2, h3 {{ font-size: 18px !important; font-weight: 600 !important; color: {TEXT}
 .os-kpi .vrow {{ display: flex; justify-content: space-between; align-items: center; gap: 8px; }}
 .os-kpi .vrow .value {{ flex: 0 0 auto; }}
 .os-kpi .os-spark {{ flex: 0 1 72px; min-width: 0; width: 72px; height: 28px; }}
-.os-kpi .label, .os-kpi .value, .os-kpi .hint, .os-kpi .delta {{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.os-kpi .value {{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
 .os-kpi .label {{ color: {TEXT_2}; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }}
 .os-kpi .value {{ color: {TEXT}; font-size: clamp(22px, 2vw, 28px); font-weight: 700; margin-top: 2px;
   font-variant-numeric: tabular-nums; line-height: 1.2; }}
-.os-kpi .hint, .os-kpi .delta {{ color: {TEXT_2}; font-size: 12px; margin-top: 4px; }}
-.os-kpi .delta span {{ font-weight: 700; }}
+.os-kpi .hint, .os-kpi .delta {{ color: {TEXT_2}; font-size: 12px; margin-top: 4px; line-height: 1.4; }}
+.os-kpi .delta {{ display: flex; align-items: flex-start; gap: 4px; }}
+.os-kpi .delta .arr {{ display: inline-flex; flex: none; padding-top: 1px; }}
 
 /* ---- alert rows ---- */
 .os-alert {{ display: block; background: {SURFACE}; border: 1px solid {BORDER};
@@ -240,7 +258,8 @@ h2, h3 {{ font-size: 18px !important; font-weight: 600 !important; color: {TEXT}
 .os-split .m .label {{ color: {TEXT_2}; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }}
 .os-split .m .value {{ font-size: 24px; font-weight: 700; color: {TEXT}; font-variant-numeric: tabular-nums;
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }}
-.os-split .delta {{ font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }}
+.os-split .delta {{ display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700;
+  padding: 2px 8px; border-radius: 999px; }}
 @media (max-width: 720px) {{ .os-split {{ grid-template-columns: 1fr; }} .os-split .side.after {{ border-left: 0;
   border-top: 1px solid {BORDER}; }} }}
 
@@ -273,6 +292,8 @@ h2, h3 {{ font-size: 18px !important; font-weight: 600 !important; color: {TEXT}
   box-shadow: 0 8px 18px rgba(0,0,0,.45); cursor: help; }}
 .os-stone:hover {{ box-shadow: 0 14px 26px rgba(0,0,0,.55) !important; }}
 .os-stone .pill-wrap {{ margin-top: 10px; }}
+.os-stone .ic {{ display: flex; justify-content: center; margin-bottom: 6px; opacity: .9; }}
+.os-banner .small, .os-hint {{ display: flex; align-items: center; gap: 6px; }}
 .os-hint {{ position: relative; color: #94a3b8; font-size: 12px; margin-top: 12px; }}
 .os-empty-yard {{ color: #cbd5e1; padding: 24px 0; }}
 .os-stone .epitaph {{ font-family: Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: .08em; color: #f1f5f9; }}
