@@ -191,6 +191,31 @@ html, [data-testid="stMain"] {{ scrollbar-gutter: stable; }}
 .os-cov .by {{ font-size: 12px; color: {TEXT_2}; }}
 .os-cov.on {{ background: {ACCENT_TINT}; border-color: {tint(ACCENT, .25)}; }}
 .os-cov.on .ck, .os-cov.on .by {{ color: {ACCENT}; }}
+/* ---- approval flow (simulated): pending badge, decision state, action log ---- */
+.st-key-os_nav {{ position: relative; }}
+.st-key-os_nav > div:has(> .st-key-os_pending) {{ position: absolute; right: 0; top: calc(50% + 4px);
+  transform: translateY(-50%); width: auto; }}
+.os-pending {{ display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; white-space: nowrap; border: 1px solid; }}
+.os-pending b {{ font-family: {FONT_MONO}; font-variant-numeric: tabular-nums; }}
+.os-pending.warning {{ color: #B45309; background: #FFF4E0; border-color: {tint("#F59E0B", .45)}; }}
+.os-pending.success {{ color: #15803D; background: {tint("#16A34A", .08)}; border-color: {tint("#16A34A", .28)}; }}
+@media (max-width: 1100px) {{ .st-key-os_nav > div:has(> .st-key-os_pending) {{ position: static; transform: none; }} }}
+.os-decision {{ margin: 4px 0 2px; }}
+.os-decision .note {{ margin-top: 6px; color: {TEXT_2}; font-size: 12.5px; line-height: 1.45; }}
+[class*="st-key-appr_"] button {{ border-radius: 999px; min-height: 34px; padding: 0 16px; font-weight: 600; }}
+[class*="st-key-appr_"] button[kind="secondary"] {{ background: #FFFFFF; border: 1px solid {BORDER}; color: {TEXT}; }}
+[class*="st-key-appr_"] button[kind="tertiary"] {{ padding: 0 6px; color: {ACCENT}; }}
+.os-log {{ display: flex; flex-direction: column; gap: 2px; }}
+.os-log.empty {{ flex-direction: row; align-items: center; gap: 8px; color: {TEXT_2}; font-size: 13px; padding: 6px 0; }}
+.os-logrow {{ display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 8px 2px;
+  border-bottom: 1px solid {GRID}; }}
+.os-logrow:last-child {{ border-bottom: 0; }}
+.os-logrow .t {{ font-family: {FONT_MONO}; font-variant-numeric: tabular-nums; font-size: 12px; color: {MUTED}; }}
+.os-logrow .svc {{ font-size: 13px; font-weight: 600; color: {TEXT}; overflow-wrap: anywhere; }}
+.os-logrow .who {{ font-size: 11.5px; color: {TEXT_2}; }}
+.os-logrow .amt {{ font-family: {FONT_MONO}; font-variant-numeric: tabular-nums; font-size: 12.5px; font-weight: 600;
+  white-space: nowrap; }}
 .os-muted {{ display: flex; align-items: center; gap: 6px; color: {MUTED}; font-size: 12px; margin: 4px 0 0; }}
 .os-risk .cap {{ color: {TEXT_2}; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }}
 

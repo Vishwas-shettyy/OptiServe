@@ -5,7 +5,7 @@ import streamlit as st
 
 from engine import config
 from engine.pipeline import ScenarioResult
-from ui import charts, components
+from ui import approvals, charts, components
 from ui.components import money, money_short
 
 SPARK_DAYS = 14
@@ -150,6 +150,21 @@ def render_resources(result: ScenarioResult) -> None:
         components.muted_note("Network and storage metrics: next step (real cloud metrics).")
 
 
+def render_recommendations(result: ScenarioResult) -> None:
+    """Draw one recommendation card per planned service, each with its approval controls."""
+    services = [sr for sr in result.services.values() if not sr.plan.empty]
+    if not services:
+        return
+    with st.container(border=True, key="card_recs"):
+        components.card_title("Recommendations", "Review and approve each plan. Nothing changes until you approve.",
+                              "sparkles")
+        for sr in services:
+            rec = sr.recommendation
+            components.recommendation_card(sr.service, str(rec["action"]), rec["current"], rec["planned_min"],
+                                           rec["planned_max"], rec["savings_monthly"], rec["savings_pct"])
+            approvals.approval_controls(result, sr, "ov")
+
+
 def render(result: ScenarioResult) -> None:
     """Draw the overview page."""
     render_kpis(result)
@@ -163,6 +178,7 @@ def render(result: ScenarioResult) -> None:
             actual, future = fleet_series(result)
             st.plotly_chart(charts.fleet_capacity_chart(actual, future), width="stretch", theme=None,
                             config={"scrollZoom": False, "displayModeBar": False})
+        render_recommendations(result)
     with right:
         with st.container(border=True, key="card_coverage"):
             components.card_title("Problem statement coverage", "Each line of the brief and where it is solved.",
@@ -171,3 +187,6 @@ def render(result: ScenarioResult) -> None:
         with st.container(border=True, key="card_actions"):
             components.card_title("Priority actions", "Most urgent first.", "shield-check")
             components.priority_actions(priority_rows(result))
+        with st.container(border=True, key="card_log"):
+            components.card_title("Action log", "Operator decisions, newest first. Simulated.", "history")
+            approvals.action_log()

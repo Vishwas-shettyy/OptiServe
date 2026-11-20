@@ -310,6 +310,34 @@ def recommendation_card(service: str, action: str, current: int, planned_min: in
         f'<div class="value" style="color:{color}">{_e(value)}</div></div></div>{why}</div>')
 
 
+def decision_status(label: str, color: str, note: str = "") -> None:
+    """Render an approval-state pill with an optional one-line note under it."""
+    extra = f'<div class="note">{_e(note)}</div>' if note else ""
+    _md(f'<div class="os-decision">{pill(label, color)}{extra}</div>')
+
+
+def action_log(rows: Sequence[dict]) -> None:
+    """Render action-log rows (time, user, service, decision, impact_text, impact) or an empty state."""
+    if not rows:
+        _md(f'<div class="os-log empty">{icon("clock", 16)}No decisions yet — review the recommendations.</div>')
+        return
+    items = "".join(
+        f'<div class="os-logrow"><span class="t">{_e(r["time"])}</span><div class="what"><div class="svc">'
+        f'{_e(r["service"])} · {_e(r["decision"])}</div><div class="who">{_e(r["user"])}</div></div>'
+        f'<span class="amt" style="color:{_tone("success" if r["impact"] > 0 else "warning" if r["impact"] < 0 else "neutral")}">'
+        f'{_e(r["impact_text"])}</span></div>'
+        for r in rows
+    )
+    _md(f'<div class="os-log">{items}</div>')
+
+
+def pending_badge(count: int) -> None:
+    """Render the header badge with the number of recommendations awaiting approval."""
+    tone = "warning" if count else "success"
+    _md(f'<div class="os-pending {tone}">{icon("alert-circle" if count else "check-circle", 14)}'
+        f'Pending approvals: <b>{count}</b></div>')
+
+
 def text_card(title: str, text: str) -> None:
     """Render a white card with a title and one paragraph."""
     _md(f'<div class="os-card"><h4>{_e(title)}</h4><p>{_e(text)}</p></div>')

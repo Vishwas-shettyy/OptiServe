@@ -5,7 +5,7 @@ import streamlit as st
 
 from engine import config
 from engine.pipeline import ScenarioResult, ServiceResult
-from ui import charts, components
+from ui import approvals, charts, components
 from ui.components import money, money_short
 
 SPARK_DAYS = 14
@@ -105,6 +105,7 @@ def render(result: ScenarioResult) -> None:
             rec = sr.recommendation
             components.recommendation_card(name, str(rec["action"]), rec["current"], rec["planned_min"],
                                            rec["planned_max"], rec["savings_monthly"], rec["savings_pct"])
+            approvals.approval_controls(result, sr, "plan")
             with st.expander("Why this plan?", expanded=False):
                 st.write(sr.explanation)
         with st.container(border=True, key="card_checks"):

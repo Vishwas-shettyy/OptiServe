@@ -8,7 +8,7 @@ import streamlit as st
 from engine import config
 from engine.data_gen import list_scenarios
 from engine.pipeline import ScenarioResult, run_scenario
-from ui import charts, components, forecast_plan, graveyard, overview, styles, time_machine  # noqa: F401  (charts registers the Plotly template)
+from ui import approvals, charts, components, forecast_plan, graveyard, overview, styles, time_machine  # noqa: F401  (charts registers the Plotly template)
 
 PAGES = [
     ("Overview", "overview", ":material/dashboard:", overview.render),
@@ -52,6 +52,8 @@ def header(result: ScenarioResult, pages: list, current: object) -> None:
                 active = page.title == current.title
                 with st.container(key="nav_active" if active else f"nav_{page.url_path or 'home'}", width="content"):
                     st.page_link(page)
+            with st.container(key="os_pending", width="content"):
+                components.pending_badge(approvals.pending_count(result))
     components.alert_ticker(result.alerts)
 
 
