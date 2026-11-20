@@ -402,3 +402,55 @@ def test_acceptance_sick_server() -> None:
     assert (bt["series"]["capacity_plan"] >= bt["series"]["capacity_fixed"]).all()
     assert abs(bt["savings_pct"]) <= 1.0 and bt["shortfall_hours_plan"] == 0
     assert "payments-api: run 8 servers instead of a fixed 8." in sr.explanation
+
+
+# ---- added scenarios: growth_startup and night_batch ---------------------------
+
+def test_growth_startup_next_month_outlook() -> None:
+    """growth_startup grows 5–11%/week, runs out of capacity within 6 weeks and needs more than 6 servers."""
+    import math
+
+    res = _run("growth_startup")
+    rec = res.services["app-api"].recommendation
+    assert 5 <= rec["growth_weekly_pct"] <= 11
+    assert math.isfinite(rec["runway_weeks"]) and rec["runway_weeks"] < 6
+    assert rec["month_servers"] > 6
+    assert any(a["severity"] == "warning" and a["service"] == "app-api" and "Demand growing" in a["message"]
+               for a in res.alerts)
+    assert "for next month" in res.services["app-api"].explanation
+
+
+def test_night_batch_plan_and_backtest() -> None:
+    """night_batch runs >= 7 servers at 02:00 and <= 4 at 14:00, saves money and is never short in the backtest."""
+    sr = _run("night_batch").services["reports-batch"]
+    hours = sr.plan["timestamp"].dt.hour
+    assert (sr.plan.loc[hours == 2, "planned"] >= 7).all()
+    assert (sr.plan.loc[hours == 14, "planned"] <= 4).all()
+    assert sr.backtest["savings_pct"] > 0 and sr.backtest["shortfall_hours_plan"] == 0
+    assert sr.recommendation["month_servers"] is None
+
+
+def test_new_scenarios_seeded_by_key() -> None:
+    """The two added scenarios are listed, seeded from SEED + their key, and the original four keep index seeds."""
+    from engine import config
+
+    assert {"growth_startup", "night_batch"} <= {k for k, _ in list_scenarios()}
+    assert data_gen.scenario_seed("office_hours") == config.SEED
+    assert data_gen.scenario_seed("sick_server") == config.SEED + 3
+    assert data_gen.scenario_seed("growth_startup") != data_gen.scenario_seed("night_batch")
+    assert load_scenario("night_batch").current_servers == {"reports-batch": 8}
+    assert load_scenario("growth_startup").current_servers == {"app-api": 6}
+
+
+NEW_KEYS = ["growth_startup", "night_batch"]
+
+
+@pytest.mark.parametrize("key", NEW_KEYS)
+def test_new_scenarios_all_scenario_checks(key: str) -> None:
+    """The existing all-scenario checks (speed, determinism, risk-cost order, result contract) hold for new keys."""
+    test_run_scenario_fast_and_deterministic(key)
+    test_risk_cost_monotonic(key)
+    test_result_contract(key)
+    test_forecast_shape_and_bands(key)
+    for risk in (0.0, 1.0):
+        test_guardrail_invariants(key, risk)

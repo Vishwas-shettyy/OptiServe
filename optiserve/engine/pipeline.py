@@ -54,6 +54,8 @@ def _service_result(
     prof = profile[profile["service"] == service]
     plan, rules = guardrails.apply_guardrails(raw, fc, prof, history_days, current)
     rec = planner.recommend(plan, monthly_cost, current)
+    growth = forecaster.weekly_growth(history, sc.events)
+    rec.update(planner.next_month_outlook(growth, fc, current, capacity, params["target_util"]))
     return ServiceResult(
         service=service,
         history=history,
@@ -127,6 +129,9 @@ def main() -> None:
                   f"({bt['savings_pct']:.1f}% saved) | shortfall h fixed {bt['shortfall_hours_fixed']} / plan "
                   f"{bt['shortfall_hours_plan']} | overprov h fixed {bt['overprov_hours_fixed']} / plan "
                   f"{bt['overprov_hours_plan']} | WAPE {bt['wape_optiserve']:.3f} vs naive {bt['wape_naive']:.3f}")
+            if rec.get("month_servers") is not None:
+                print(f"    Next month: +{rec['growth_weekly_pct']:.1f}%/week | runway {rec['runway_weeks']:.1f} weeks "
+                      f"| plan {rec['month_servers']} servers")
             print(f"    {sr.explanation}")
         for a in res.alerts:
             print(f"  ({a['severity']}) {a['service']}: {a['message']}")

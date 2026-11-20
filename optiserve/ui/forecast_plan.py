@@ -104,7 +104,8 @@ def render(result: ScenarioResult) -> None:
             components.card_title("Recommendation", "What to run next week.", "sparkles")
             rec = sr.recommendation
             components.recommendation_card(name, str(rec["action"]), rec["current"], rec["planned_min"],
-                                           rec["planned_max"], rec["savings_monthly"], rec["savings_pct"])
+                                           rec["planned_max"], rec["savings_monthly"], rec["savings_pct"],
+                                           outlook=rec)
             approvals.approval_controls(result, sr, "plan")
             with st.expander("Why this plan?", expanded=False):
                 st.write(sr.explanation)

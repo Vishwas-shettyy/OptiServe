@@ -29,7 +29,7 @@ optiserve/
   engine/
     __init__.py
     config.py            # all constants (section 4)
-    data_gen.py          # 4 synthetic scenarios (section 5)
+    data_gen.py          # 6 synthetic scenarios (section 5)
     profiler.py          # server status + waste (section 6)
     forecaster.py        # demand forecast + anomalies + baseline (section 7)
     planner.py           # forecast -> servers per hour + recommendation (section 8)
@@ -109,7 +109,7 @@ DEFAULT_RISK = 0.5
 ```
 `risk_params(risk: float) -> dict` linearly interpolates RISK_CHEAP (risk=0) to RISK_SAFE (risk=1); `risk_label(risk)` returns "Cheapest" (<0.34), "Balanced" (<0.67) or "Safest".
 
-## 5. data_gen.py — 4 scenarios
+## 5. data_gen.py — 6 scenarios
 
 `list_scenarios() -> list[tuple[key, title]]`, `load_scenario(key) -> Scenario`.
 History = 672 hourly timestamps from START. Load of a service is split evenly across its non-zombie servers.
@@ -124,7 +124,10 @@ Service demand noise: multiply by `(1 + N(0, 0.08))`, never below 0.
 | `flash_sale` | Festive flash sale | `shop-web` 10 servers, ₹8,000/mo; `legacy` 1 zombie (`demo-2024`) | `2500 + 2000*sin(pi*(hour-8)/16)` for hours 8–23 else 800; weekends ×1.2 | past sale 2026-11-12 18:00–23:00 ×6; future sale 2026-11-20 18:00–23:00 ×5; both in `events` |
 | `forgotten_servers` | Forgotten servers | `analytics` 6 servers, ₹6,000/mo; `legacy` 5 zombies (`old-staging-1`, `old-staging-2`, `test-db-replica`, `demo-2024`, `old-jenkins`) ₹5,000/mo | `analytics`: 1500 + 2100*sin(pi*(hour-6)/14) for hours 6–20 else 900 | — |
 | `sick_server` | Payments API with a sick server | `payments-api` 8 servers (`pay-01`..`pay-08`), ₹9,000/mo | 1200 + 2800*sin(pi*(hour-7)/15) for hours 7–22 else 1000 | `pay-07`: mem ramps 40→96 over last 72h, error_rate 0.08 in last 24h; one unexplained spike ×4 at 2026-10-29 14:00 (NOT an event) |
+| `growth_startup` | Growing startup | `app-api` 6 servers (`app-01`..`app-06`), ₹7,000/mo | `1000 + 1800*sin(pi*(hour-8)/14)` for hours 8–22 else 700; weekends ×0.9; whole series × `1.08^(day/7)` (day = whole days since START; 8% growth per week) | no events, no zombies |
+| `night_batch` | Nightly batch jobs | `reports-batch` 8 servers (`rb-01`..`rb-08`), ₹6,000/mo | 01:00–04:59 = 5500 every day; other hours 900 | no events, no zombies |
 
+RNG: the original four use `default_rng(SEED + index)`; scenarios added later use `default_rng([SEED, crc32(key)])` so adding a scenario never changes existing data.
 `current_servers` = count of non-zombie servers per service. Server ids: `<service-prefix>-NN` (e.g. `hr-01`), zombies use their names as ids.
 
 ## 6. profiler.py
@@ -150,6 +153,7 @@ Service demand noise: multiply by `(1 + N(0, 0.08))`, never below 0.
   5. For forecast hours inside an event: multiply expected/low/high by the event multiplier, `is_event=True`.
 - `naive_forecast(history, start, hours)`: value of the same hour one week earlier.
 - `wape(actual, forecast) -> float` = sum|a-f| / sum(a).
+- `weekly_growth(history, events) -> float` = mean(last 7 days)/mean(previous 7 days) of event-free, anomaly-cleaned demand (1.0 if unknown).
 
 ## 8. planner.py
 
@@ -157,6 +161,7 @@ Service demand noise: multiply by `(1 + N(0, 0.08))`, never below 0.
 - `build_plan(forecast, current, capacity_rps, target_util) -> plan DataFrame` (planned = needed_raw before guardrails).
 - `recommend(plan, monthly_cost, current) -> dict` with: `current, planned_min, planned_avg, planned_max, current_monthly, planned_monthly, savings_monthly, savings_pct, action, peak_time, peak_servers, quiet_time`.
   planned_monthly = planned.mean() * monthly_cost. action: "scale_up" if planned_max > current and planned_avg >= 0.9*current; "scale_down" if planned_max <= current and planned_avg < 0.9*current; "schedule" if both up at peak and down on average; else "hold".
+- `next_month_outlook(growth_weekly, forecast, current, capacity_rps, target_util) -> dict` (merged into the recommendation; additive keys): when growth_weekly > GROWTH_MIN_WEEKLY (1.02): peak = max forecast high; usable = current*capacity_rps*target_util; `growth_weekly_pct` = (g-1)*100; `runway_weeks` = log(usable/peak)/log(g) (0 if peak >= usable); `month_servers` = ceil(peak*g^4/(capacity_rps*target_util)). All three None when not growing.
 
 ## 9. guardrails.py
 
@@ -169,6 +174,7 @@ Service demand noise: multiply by `(1 + N(0, 0.08))`, never below 0.
 6. **Health**: any server in the service with status Risky → planned = max(planned, current), "blocked", message names the server.
 `build_alerts(profile, services_results) -> list[dict]` each `severity ("critical"|"warning"|"info"), service, message`:
 critical = Risky server; warning = forecast hour where high > current*capacity_rps*0.9 ("Capacity shortfall expected at Fri 20 Nov 20:00 — needs N servers, you run M"), only the first such hour per service; warning = each anomaly cluster; info = zombie count and their monthly cost. Sort critical → info.
+warning (growing services only) = "Demand growing ~X%/week — current capacity runs out in ~N week(s) (by <date>). Plan M servers for next month." ("within a week (by <peak date>)" when runway is 0).
 
 ## 10. backtest.py
 
@@ -181,11 +187,13 @@ shortfall hour = actual > servers*capacity_rps; overprov hour = actual/(servers*
 
 `explain(service, rec, guardrails, risk) -> str`: 2–4 short sentences, plain language, numbers with thousand separators and CURRENCY. Template:
 "`{service}`: run {min}–{max} servers instead of a fixed {current}. Busiest hour {peak_time:%a %d %b %H:%M} needs {peak_servers}. Saves ₹{savings:,}/month ({pct}%). Risk setting: {label}." + one sentence per blocked/adjusted rule. When min == max, write "{n} servers" instead of "{n}–{n}".
+Growing services (month_servers not None) get one more sentence: "At +X%/week, plan M servers for next month."
 
 ## 12. pipeline.py
 
 `run_scenario(key: str, risk: float = DEFAULT_RISK) -> ScenarioResult`: load scenario → profile → for each service that has non-zombie servers: demand, forecast, plan, guardrails, recommendation, explanation, backtest → alerts → kpis.
 `kpis`: `monthly_cost` (all servers), `avg_util` (mean cpu of non-zombie servers, last 14 days), `waste_score`, `potential_savings` (zombie costs + positive service savings), `zombies`, `risky`.
+Per service, after `recommend`: `rec.update(next_month_outlook(weekly_growth(history, events), forecast, current, capacity, target_util))`.
 `if __name__ == "__main__":` print one summary block per scenario (KPIs, recommendation, blocked rules, backtest numbers).
 
 ## 13. UI rules (Streamlit)
@@ -208,4 +216,7 @@ shortfall hour = actual > servers*capacity_rps; overprov hour = actual/(servers*
 | flash_sale | forecast high at 2026-11-20 20:00 >= 4 × high at 2026-11-19 20:00; planned at 2026-11-20 18:00 > 10; a "Capacity shortfall expected" warning exists; backtest shortfall_hours_plan < shortfall_hours_fixed |
 | forgotten_servers | exactly 5 Zombies; waste_score > 25 |
 | sick_server | `pay-07` Risky; health rule "blocked"; min planned >= 8; a critical alert names `pay-07`; >= 1 anomaly detected around 2026-10-29 14:00 |
+| growth_startup | `growth_weekly_pct` between 5 and 11; `runway_weeks` finite and < 6; `month_servers` > 6; a "Demand growing" warning alert exists |
+| night_batch | planned at 02:00 on every forecast day >= 7; planned at 14:00 <= 4; backtest savings_pct > 0 and shortfall_hours_plan == 0 |
+| all (incl. new) | the original four produce identical output after scenarios are added |
 | forecaster | office_hours backtest `wape_optiserve <= wape_naive * 1.05` |

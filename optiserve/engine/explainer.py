@@ -25,4 +25,6 @@ def explain(service: str, rec: dict, guardrails: list[dict], risk: float) -> str
     for rule in guardrails:
         if rule["status"] in ("blocked", "adjusted"):
             sentences.append(f"{rule['rule']}: {rule['message']}")
+    if rec.get("month_servers") is not None:
+        sentences.append(f"At +{rec['growth_weekly_pct']:.0f}%/week, plan {rec['month_servers']} servers for next month.")
     return " ".join(sentences)

@@ -297,12 +297,24 @@ def _saving_html(savings: float, pct: float) -> tuple[str, str, str]:
     return "Saving / month", f"{CURRENCY}0", TEXT_2
 
 
+def _outlook_html(outlook: dict | None) -> str:
+    """Return the "Next month" row (growth %/week, runway, servers needed) or "" when the service is not growing."""
+    if not outlook or outlook.get("month_servers") is None:
+        return ""
+    weeks = float(outlook["runway_weeks"])
+    runway = "under 1 week" if weeks < 1 else f"~{weeks:.0f} weeks"
+    return (f'<div class="outlook"><span class="ic">{icon("trend-up", 16)}</span><span class="lab">Next month</span>'
+            f'<span class="vals"><b>+{float(outlook["growth_weekly_pct"]):.1f}%</b>/week · runway <b>{_e(runway)}</b>'
+            f' · <b>{int(outlook["month_servers"])}</b> servers needed</span></div>')
+
+
 def recommendation_card(service: str, action: str, current: int, planned_min: int, planned_max: int,
-                        savings: float, savings_pct: float, explanation: str = "", title: str = "") -> None:
-    """Render a recommendation card: name, action badge, current → planned servers, ₹ saving, explanation."""
+                        savings: float, savings_pct: float, explanation: str = "", title: str = "",
+                        outlook: dict | None = None) -> None:
+    """Render a recommendation card: name, action badge, current → planned servers, ₹ saving, outlook, explanation."""
     label, value, color = _saving_html(savings, savings_pct)
     head = _e(title or service)
-    why = f'<p>{_e(explanation)}</p>' if explanation else ""
+    why = _outlook_html(outlook) + (f'<p>{_e(explanation)}</p>' if explanation else "")
     _md(f'<div class="os-card os-rec"><div class="head"><span class="name">{head}</span>{action_badge(action)}</div>'
         f'<div class="stats"><div class="stat"><div class="label">Servers</div>'
         f'<div class="value">{current} → {_e(server_range(planned_min, planned_max))}</div></div>'
@@ -395,12 +407,13 @@ def tombstone(name: str, instance_type: str, service: str, status: str, cost: fl
 def night_scene(total_wasted: float, counts: dict[str, int], stones: Sequence[str]) -> None:
     """Render the dark night-scene panel with its waste banner and a grid of tombstones."""
     parts = " · ".join(f"{n} {EPITAPHS.get(s, s).lower()}" for s, n in counts.items())
-    body = "".join(stones) or '<div class="os-empty-yard">The yard is empty — every server is earning its keep.</div>'
+    body = "".join(stones) or (f'<div class="os-empty-yard">{icon("check-circle", 18)} The yard is empty — every '
+                               f'server is earning its keep. Nothing to switch off or downsize.</div>')
+    summary = f"{len(stones)} server(s) in the yard — {_e(parts)}" if stones else "No idle, oversized or unhealthy servers"
+    hint = f'<div class="os-hint">{icon("info", 14)} Hover a stone to see why it is here.</div>' if stones else ""
     _md(f'<div class="os-sky"><div class="os-moon"></div><div class="os-banner">'
         f'<div class="small">{icon("flame", 16)} Wasted every month</div><div class="big">{_e(money(total_wasted))}</div>'
-        f'<div class="small">{len(stones)} server(s) in the yard — {_e(parts)}</div></div>'
-        f'<div class="os-yard">{body}</div><div class="os-hint">{icon("info", 14)} Hover a stone to see why it is here.'
-        f'</div></div>')
+        f'<div class="small">{summary}</div></div><div class="os-yard">{body}</div>{hint}</div>')
 
 
 def table_card(title: str, headers: Sequence[str], rows: Sequence[Sequence[str]], numeric: Sequence[int] = ()) -> None:

@@ -1,5 +1,6 @@
-"""Synthetic scenario generator (4 scenarios)."""
+"""Synthetic scenario generator (6 scenarios)."""
 
+import zlib
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -62,6 +63,22 @@ def _payments(ts: pd.DatetimeIndex) -> np.ndarray:
     return np.where(day, 1200.0 + 2800.0 * np.sin(np.pi * (hour - 7) / 15), 1000.0)
 
 
+def _growth(ts: pd.DatetimeIndex) -> np.ndarray:
+    """App API demand: daytime sine curve, weekends x0.9, whole series growing 8% per week."""
+    hour = ts.hour.to_numpy()
+    day = (hour >= 8) & (hour <= 22)
+    base = np.where(day, 1000.0 + 1800.0 * np.sin(np.pi * (hour - 8) / 14), 700.0)
+    base = base * np.where(ts.day_of_week.to_numpy() >= 5, 0.9, 1.0)
+    days = ((ts - pd.Timestamp(config.START)) // pd.Timedelta(days=1)).to_numpy()
+    return base * 1.08 ** (days / 7.0)
+
+
+def _night_batch(ts: pd.DatetimeIndex) -> np.ndarray:
+    """Reports batch demand: heavy 01:00-04:59 every night, light the rest of the day."""
+    hour = ts.hour.to_numpy()
+    return np.where((hour >= 1) & (hour <= 4), 5500.0, 900.0)
+
+
 SCENARIOS: dict[str, dict] = {
     "office_hours": {
         "title": "Office-hours HR portal",
@@ -105,12 +122,42 @@ SCENARIOS: dict[str, dict] = {
         "spikes": [("payments-api", "2026-10-29 14:00", 4.0)],
         "sick": "pay-07",
     },
+    "growth_startup": {
+        "title": "Growing startup",
+        "story": "A startup API whose traffic grows about 8% every week; today's 6 servers will not last "
+        "the month.",
+        "services": [("app-api", "app", 6, 7000.0, _growth)],
+        "zombies": [],
+        "events": [],
+        "spikes": [],
+        "sick": None,
+    },
+    "night_batch": {
+        "title": "Nightly batch jobs",
+        "story": "A reporting service that crunches batch jobs from 1 to 5 am and idles the rest of the day "
+        "on 8 always-on servers.",
+        "services": [("reports-batch", "rb", 8, 6000.0, _night_batch)],
+        "zombies": [],
+        "events": [],
+        "spikes": [],
+        "sick": None,
+    },
 }
+# The first four scenarios keep their original index-based seeds so their data never changes;
+# later scenarios derive their seed from SEED + their own key.
+INDEX_SEEDED = ("office_hours", "flash_sale", "forgotten_servers", "sick_server")
 
 
 def list_scenarios() -> list[tuple[str, str]]:
     """Return (key, title) for every scenario."""
     return [(key, spec["title"]) for key, spec in SCENARIOS.items()]
+
+
+def scenario_seed(key: str) -> int | list[int]:
+    """Return the RNG seed for a scenario: SEED + index for the original four, else [SEED, crc32(key)]."""
+    if key in INDEX_SEEDED:
+        return config.SEED + list(SCENARIOS).index(key)
+    return [config.SEED, zlib.crc32(key.encode("utf-8"))]
 
 
 def _timestamps() -> pd.DatetimeIndex:
@@ -190,7 +237,7 @@ def load_scenario(key: str) -> Scenario:
     if key not in SCENARIOS:
         raise KeyError(f"Unknown scenario: {key}")
     spec = SCENARIOS[key]
-    rng = np.random.default_rng(config.SEED + list(SCENARIOS).index(key))
+    rng = np.random.default_rng(scenario_seed(key))
     ts = _timestamps()
     servers = _build_servers(spec)
     events = _build_events(spec)

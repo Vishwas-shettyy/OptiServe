@@ -117,6 +117,17 @@ def build_alerts(profile: pd.DataFrame, services_results: dict) -> list[dict]:
             need = int(plan["needed_raw"].iloc[i])
             alerts.append({"severity": "warning", "service": service,
                            "message": f"Capacity shortfall expected at {ts:%a %d %b %H:%M} — needs {need} servers, you run {current}"})
+        rec = getattr(res, "recommendation", None) or {}
+        if rec.get("month_servers") is not None:
+            weeks = float(rec["runway_weeks"])
+            if weeks > 0:
+                by = pd.Timestamp(fc["timestamp"].min()) + pd.Timedelta(weeks=weeks)
+                when = f"in ~{weeks:.0f} week(s) (by {by:%d %b})"
+            else:
+                when = f"within a week (by {pd.Timestamp(fc.loc[fc['high'].idxmax(), 'timestamp']):%d %b})"
+            alerts.append({"severity": "warning", "service": service,
+                           "message": f"Demand growing ~{rec['growth_weekly_pct']:.0f}%/week — current capacity runs out "
+                                      f"{when}. Plan {rec['month_servers']} servers for next month."})
         for group in _clusters(res.anomalies):
             peak = max(group, key=lambda a: a["value"])
             ratio = peak["value"] / peak["expected"] if peak["expected"] > 0 else float("inf")

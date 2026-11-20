@@ -282,6 +282,12 @@ html, [data-testid="stMain"] {{ scrollbar-gutter: stable; }}
 .os-rec .stats {{ display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 12px; }}
 .os-rec .stat .label {{ color: {TEXT_2}; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }}
 .os-rec .stat .value {{ color: {TEXT}; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }}
+.os-rec .outlook {{ display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin: 0 0 10px; padding: 8px 12px;
+  border-radius: 10px; background: #FFF4E0; border: 1px solid {tint("#F59E0B", .40)}; color: #B45309; font-size: 13px; }}
+.os-rec .outlook .ic {{ display: inline-flex; }}
+.os-rec .outlook .lab {{ font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }}
+.os-rec .outlook .vals {{ color: {TEXT}; }}
+.os-rec .outlook b {{ font-family: {FONT_MONO}; font-variant-numeric: tabular-nums; font-weight: 600; }}
 .os-check {{ display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid {BORDER}; }}
 .os-check:last-child {{ border-bottom: 0; padding-bottom: 0; }}
 .os-check .icon {{ display: inline-flex; padding-top: 2px; }}
@@ -406,7 +412,7 @@ html, [data-testid="stMain"] {{ scrollbar-gutter: stable; }}
 .os-stone .ic {{ display: flex; justify-content: center; margin-bottom: 6px; opacity: .9; }}
 .os-banner .small, .os-hint {{ display: flex; align-items: center; gap: 6px; }}
 .os-hint {{ position: relative; color: #94a3b8; font-size: 12px; margin-top: 12px; }}
-.os-empty-yard {{ color: #cbd5e1; padding: 24px 0; }}
+.os-empty-yard {{ display: flex; align-items: center; gap: 8px; color: #cbd5e1; padding: 24px 0; grid-column: 1 / -1; }}
 .os-stone .epitaph {{ font-family: Georgia, serif; font-size: 17px; font-weight: 700; letter-spacing: .08em; color: #f1f5f9; }}
 .os-stone .name {{ font-weight: 700; margin: 8px 0 2px; word-break: break-word; }}
 .os-stone .meta {{ color: #cbd5e1; font-size: 12px; line-height: 1.5; }}

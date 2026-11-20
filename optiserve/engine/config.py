@@ -24,6 +24,8 @@ TARGET_CPU_FOR_WASTE = 65.0
 RISK_CHEAP = {"target_util": 0.85, "z": 0.5}
 RISK_SAFE = {"target_util": 0.55, "z": 2.0}
 DEFAULT_RISK = 0.5
+GROWTH_MIN_WEEKLY = 1.02        # weekly demand ratio above this counts as growing
+WEEKS_PER_MONTH = 4
 
 
 def risk_params(risk: float) -> dict:

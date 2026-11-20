@@ -91,6 +91,24 @@ def _trend_ratio(clean: pd.Series, end: pd.Timestamp, days_available: float) -> 
     return float(np.clip(last / prev, 0.8, 1.3))
 
 
+def weekly_growth(history: pd.DataFrame, events: pd.DataFrame) -> float:
+    """Return mean(last 7 days)/mean(previous 7 days) of event-free, anomaly-cleaned demand (1.0 if unknown)."""
+    if history.empty:
+        return 1.0
+    service = history["service"].iloc[0] if "service" in history else None
+    hist = history.sort_values("timestamp").set_index("timestamp")
+    idx = pd.DatetimeIndex(hist.index)
+    ev_mask = _event_mask(idx, events, service)
+    cleaned, _ = detect_anomalies(hist["requests"].astype(float), ev_mask)
+    clean = cleaned[~ev_mask.to_numpy()]
+    end = idx.max()
+    last = clean[clean.index > end - pd.Timedelta(days=7)].mean()
+    prev = clean[(clean.index > end - pd.Timedelta(days=14)) & (clean.index <= end - pd.Timedelta(days=7))].mean()
+    if not np.isfinite(last) or not np.isfinite(prev) or prev <= 0:
+        return 1.0
+    return float(last / prev)
+
+
 def forecast_service(
     history: pd.DataFrame,
     events: pd.DataFrame,

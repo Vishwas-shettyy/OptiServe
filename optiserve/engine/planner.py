@@ -1,5 +1,7 @@
 """Turn a forecast into servers per hour and a recommendation."""
 
+import math
+
 import numpy as np
 import pandas as pd
 
@@ -62,4 +64,23 @@ def recommend(plan: pd.DataFrame, monthly_cost: float, current: int) -> dict:
         "peak_time": pd.Timestamp(plan["timestamp"].iloc[peak_i]),
         "peak_servers": int(planned.iloc[peak_i]),
         "quiet_time": pd.Timestamp(plan["timestamp"].iloc[quiet_i]),
+    }
+
+
+def next_month_outlook(growth_weekly: float, forecast: pd.DataFrame, current: int, capacity_rps: float,
+                       target_util: float) -> dict:
+    """Return growth_weekly_pct, runway_weeks and month_servers for a growing service (all None otherwise)."""
+    none = {"growth_weekly_pct": None, "runway_weeks": None, "month_servers": None}
+    if growth_weekly <= config.GROWTH_MIN_WEEKLY or forecast.empty:
+        return none
+    peak = float(forecast["high"].max())
+    usable = current * capacity_rps * target_util
+    per_server = capacity_rps * target_util
+    if peak <= 0 or per_server <= 0:
+        return none
+    runway = 0.0 if peak >= usable else math.log(usable / peak) / math.log(growth_weekly)
+    return {
+        "growth_weekly_pct": round((growth_weekly - 1.0) * 100.0, 1),
+        "runway_weeks": round(runway, 1),
+        "month_servers": int(math.ceil(peak * growth_weekly ** config.WEEKS_PER_MONTH / per_server)),
     }

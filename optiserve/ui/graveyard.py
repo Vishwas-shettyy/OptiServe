@@ -124,7 +124,9 @@ def render(result: ScenarioResult) -> None:
         components.insight_banner(f"No money wasted, but {', '.join(risky)} is unhealthy: fix it, do not remove it.",
                                   "danger")
     else:
-        tail = f" Never remove {', '.join(risky)}: it is unhealthy." if risky else " Switch off the R.I.P. ones first."
+        tail = (f" Never remove {', '.join(risky)}: it is unhealthy." if risky else
+                " Switch off the R.I.P. ones first." if (buried["status"] == "Zombie").any() else
+                " Downsize or consolidate the ones on notice.")
         components.insight_banner(f"{len(buried)} server(s) waste {money(wasted)}/month.{tail}",
                                   "danger" if risky else "warning")
     render_kpis(result)
