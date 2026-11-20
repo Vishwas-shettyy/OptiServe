@@ -109,9 +109,51 @@ def priority_rows(result: ScenarioResult) -> list[dict]:
     return rows[:MAX_ACTIONS]
 
 
+RESOURCE_METRICS = ["CPU", "Memory", "Requests"]
+
+
+def fleet_usage(result: ScenarioResult) -> pd.DataFrame:
+    """Return last-7-day hourly usage of non-zombie servers: mean cpu/mem %, requests and req_pct of capacity."""
+    sc, profile = result.scenario, result.profile
+    active_ids = set(profile.loc[profile["status"] != "Zombie", "server_id"])
+    m = sc.metrics[sc.metrics["server_id"].isin(active_ids)]
+    if m.empty:
+        return pd.DataFrame(columns=["timestamp", "cpu", "mem", "req_pct", "requests"])
+    m = m[m["timestamp"] > m["timestamp"].max() - pd.Timedelta(days=7)]
+    capacity = float(sc.servers.loc[sc.servers["server_id"].isin(active_ids), "capacity_rps"].sum())
+    hourly = m.groupby("timestamp", as_index=False).agg(cpu=("cpu_pct", "mean"), mem=("mem_pct", "mean"),
+                                                        requests=("requests", "sum"))
+    hourly["req_pct"] = hourly["requests"] / capacity * 100 if capacity else 0.0
+    return hourly
+
+
+def render_resources(result: ScenarioResult) -> None:
+    """Draw the full-width resource-usage card: metric chips, combined % chart and three small charts."""
+    usage = fleet_usage(result)
+    with st.container(border=True, key="card_resources"):
+        components.card_title("Fleet resource usage · last 7 days", "Hourly, non-idle servers. Requests shown as "
+                              "% of fleet capacity.", "cpu")
+        picked = st.pills("Metrics", RESOURCE_METRICS, selection_mode="multi", default=RESOURCE_METRICS,
+                          key="res_metrics", label_visibility="collapsed") or []
+        selected = [m for m in RESOURCE_METRICS if m in picked]
+        cfg = {"scrollZoom": False, "displayModeBar": False}
+        st.plotly_chart(charts.resource_chart(usage, selected), width="stretch", theme=None, config=cfg,
+                        key="res_combined")
+        if not selected:
+            st.caption("Select at least one metric to plot.")
+        minis = [("cpu", "CPU %", "CPU", True), ("mem", "Memory %", "Memory", True),
+                 ("requests", "Requests per hour", "Requests", False)]
+        for col, (field, title, name, pct) in zip(st.columns(3, gap="small"), minis):
+            with col:
+                st.plotly_chart(charts.mini_chart(usage, field, title, charts.RESOURCE_COLORS[name], pct),
+                                width="stretch", theme=None, config=cfg, key=f"res_{field}")
+        components.muted_note("Network and storage metrics: next step (real cloud metrics).")
+
+
 def render(result: ScenarioResult) -> None:
     """Draw the overview page."""
     render_kpis(result)
+    render_resources(result)
     left, right = st.columns([2, 1], gap="medium")
     with left:
         with st.container(border=True, key="card_fleet"):
@@ -122,6 +164,10 @@ def render(result: ScenarioResult) -> None:
             st.plotly_chart(charts.fleet_capacity_chart(actual, future), width="stretch", theme=None,
                             config={"scrollZoom": False, "displayModeBar": False})
     with right:
+        with st.container(border=True, key="card_coverage"):
+            components.card_title("Problem statement coverage", "Each line of the brief and where it is solved.",
+                                  "check-circle")
+            components.problem_coverage(result.scenario.key)
         with st.container(border=True, key="card_actions"):
             components.card_title("Priority actions", "Most urgent first.", "shield-check")
             components.priority_actions(priority_rows(result))

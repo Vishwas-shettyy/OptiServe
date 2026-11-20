@@ -81,6 +81,7 @@ def main() -> None:
     current = st.navigation(pages, position="hidden")
     header(result, pages, current)
     controls(titles)
+    components.problem_strip(result.scenario.key)
     current.run()
 
 

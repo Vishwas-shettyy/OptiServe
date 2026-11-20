@@ -201,6 +201,56 @@ def alert_ticker(alerts: Sequence[dict]) -> None:
         f'<div class="msg" aria-hidden="true"><div class="track"><span>{_e(text)}</span></div></div></div>')
 
 
+# ---- problem-statement mapping (display text only) ------------------------------
+
+BRIEF_LABEL = "From the problem statement"
+_FRACTION = "…most servers run at a fraction of their capacity for most of the day."
+PROBLEM_QUOTES: dict[str, tuple[str, str, str]] = {
+    "office_hours": (BRIEF_LABEL, "Teams size their infrastructure by guesswork and then leave it alone. To be safe, "
+                                  "they provision for the worst case.", "Smart schedule"),
+    "flash_sale": (BRIEF_LABEL, "…while the occasional busy hour still catches them short.", "Forecast + pre-warm"),
+    "forgotten_servers": (BRIEF_LABEL, _FRACTION, "Server Graveyard"),
+    "sick_server": ("Beyond the brief", "Cutting capacity blindly is risky — OptiServe checks server health before it "
+                                        "saves money.", "Safety checks"),
+    "growth_startup": (BRIEF_LABEL, "Usage data … is rarely used to decide how much capacity is needed next week or "
+                                    "next month.", "Next-month outlook"),
+    "night_batch": (BRIEF_LABEL, _FRACTION, "Time-aware schedule"),
+}
+PROBLEM_COVERAGE: list[tuple[str, str, tuple[str, ...]]] = [
+    ("Sized by guesswork, left alone", "Office-hours portal", ("office_hours",)),
+    ("Provisioned for the worst case", "Office-hours portal", ("office_hours",)),
+    ("Servers at a fraction of capacity", "Forgotten servers · Nightly batch", ("forgotten_servers", "night_batch")),
+    ("Busy hour catches them short", "Flash sale", ("flash_sale",)),
+    ("Capacity for next week", "Forecast & Plan (7-day hourly)", ()),
+    ("Capacity for next month", "Growing startup", ("growth_startup",)),
+]
+
+
+def problem_strip(scenario_key: str) -> None:
+    """Render the slim quote strip linking the scenario to the problem statement; unknown keys render nothing."""
+    if scenario_key not in PROBLEM_QUOTES:
+        return
+    label, quote, solved = PROBLEM_QUOTES[scenario_key]
+    _md(f'<div class="os-quote" role="note"><span class="qi">{icon("quote", 20)}</span>'
+        f'<div class="body"><div class="lab">{_e(label)}</div><div class="q">“{_e(quote)}”</div></div>'
+        f'<span class="tag">{icon("check-circle", 14)}Solved by: {_e(solved)}</span></div>')
+
+
+def problem_coverage(scenario_key: str) -> None:
+    """Render one row per problem-statement line with the scenario/page that covers it; current ones highlighted."""
+    rows = "".join(
+        f'<div class="os-cov{" on" if scenario_key in keys else ""}"><span class="ck">{icon("check-circle", 16)}</span>'
+        f'<span class="ln">{_e(line)}</span><span class="by">{_e(by)}</span></div>'
+        for line, by, keys in PROBLEM_COVERAGE
+    )
+    _md(f'<div class="os-covlist">{rows}</div>')
+
+
+def muted_note(text: str) -> None:
+    """Render a small muted footnote line."""
+    _md(f'<div class="os-muted">{icon("info", 14)}{_e(text)}</div>')
+
+
 def risk_pill(label: str) -> None:
     """Render the live risk-mode label as a pill."""
     color = _tone(RISK_TONES.get(label, "info"))

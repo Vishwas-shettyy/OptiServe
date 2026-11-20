@@ -172,3 +172,41 @@ def fleet_capacity_chart(actual: pd.DataFrame, forecast: pd.DataFrame) -> go.Fig
     layout(fig, 340, "Requests per hour")
     fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=8, r=8, t=40, b=8))
     return fig
+
+
+RESOURCE_COLORS: dict[str, str] = {"CPU": ACCENT, "Memory": STATUS_COLORS["Zombie"], "Requests": "#0D9488"}
+RESOURCE_COLS: dict[str, str] = {"CPU": "cpu", "Memory": "mem", "Requests": "req_pct"}
+
+
+def resource_chart(usage: pd.DataFrame, selected: list[str]) -> go.Figure:
+    """Build the combined fleet usage chart (% of capacity), one line per selected metric.
+
+    `usage` has timestamp, cpu, mem, req_pct (all %) and requests.
+    """
+    fig = go.Figure()
+    for name in selected:
+        fig.add_trace(go.Scatter(x=usage["timestamp"], y=usage[RESOURCE_COLS[name]], name=f"{name} %",
+                                 line=dict(color=RESOURCE_COLORS[name], width=1.8), hovertemplate="%{y:.1f}%"))
+    fig.update_yaxes(range=[0, 100], ticksuffix="%")
+    fig.update_xaxes(ticklabelstandoff=6)
+    layout(fig, 300, "% of capacity")
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", showlegend=True,
+                      margin=dict(l=8, r=8, t=28, b=8))
+    return fig
+
+
+def mini_chart(usage: pd.DataFrame, col: str, title: str, color: str, percent: bool) -> go.Figure:
+    """Build a small single-metric area chart for the resource-usage row."""
+    fig = go.Figure(go.Scatter(x=usage["timestamp"], y=usage[col], name=title, line=dict(color=color, width=1.5),
+                               fill="tozeroy", fillcolor=tint(color, .10),
+                               hovertemplate="%{y:.1f}%" if percent else "%{y:,.0f}"))
+    if percent:
+        fig.update_yaxes(range=[0, 100], ticksuffix="%")
+    else:
+        fig.update_yaxes(rangemode="tozero", tickformat="~s")
+    fig.update_xaxes(nticks=4, tickformat="%a", ticklabelstandoff=4)
+    apply_style(fig, 170)
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", showlegend=False,
+                      margin=dict(l=8, r=8, t=28, b=8),
+                      title=dict(text=title, x=0, xref="paper", xanchor="left", y=0.98, font=dict(size=13, color=TEXT_2)))
+    return fig

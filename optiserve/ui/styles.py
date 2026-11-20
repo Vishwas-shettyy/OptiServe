@@ -167,6 +167,31 @@ html, [data-testid="stMain"] {{ scrollbar-gutter: stable; }}
   backdrop-filter: blur(16px) saturate(160%); border: 1px solid {GLASS_BORDER}; border-radius: 20px;
   box-shadow: {GLASS_SHADOW}; padding: 10px 20px 4px; margin: 4px 0 8px; }}
 .os-risk {{ display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding-top: 18px; }}
+
+/* ---- problem-statement quote strip (under the controls row) ---- */
+.os-quote {{ display: flex; align-items: center; gap: 14px; padding: 10px 16px 10px 14px; margin: -8px 0 0;
+  background: {GLASS_BG}; -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid {GLASS_BORDER}; border-left: 3px solid {ACCENT}; border-radius: 14px; box-shadow: {GLASS_SHADOW}; }}
+.os-quote .qi {{ display: inline-flex; flex: none; width: 36px; height: 36px; align-items: center; justify-content: center;
+  border-radius: 10px; color: {ACCENT}; background: {ACCENT_TINT}; }}
+.os-quote .body {{ flex: 1; min-width: 0; }}
+.os-quote .lab {{ font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: {ACCENT}; }}
+.os-quote .q {{ font-size: 15px; font-style: italic; font-weight: 500; color: {TEXT}; line-height: 1.4; }}
+.os-quote .tag {{ flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; white-space: nowrap; color: #15803D; background: {tint("#16A34A", .09)};
+  border: 1px solid {tint("#16A34A", .28)}; }}
+@media (max-width: 900px) {{ .os-quote {{ flex-wrap: wrap; }} .os-quote .tag {{ margin-left: 50px; }} }}
+
+/* ---- problem coverage list & muted note ---- */
+.os-covlist {{ display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }}
+.os-cov {{ display: grid; grid-template-columns: auto 1fr; column-gap: 10px; padding: 7px 10px; border-radius: 10px;
+  border: 1px solid transparent; }}
+.os-cov .ck {{ grid-row: span 2; display: inline-flex; padding-top: 1px; color: #16A34A; }}
+.os-cov .ln {{ font-size: 13.5px; font-weight: 600; color: {TEXT}; }}
+.os-cov .by {{ font-size: 12px; color: {TEXT_2}; }}
+.os-cov.on {{ background: {ACCENT_TINT}; border-color: {tint(ACCENT, .25)}; }}
+.os-cov.on .ck, .os-cov.on .by {{ color: {ACCENT}; }}
+.os-muted {{ display: flex; align-items: center; gap: 6px; color: {MUTED}; font-size: 12px; margin: 4px 0 0; }}
 .os-risk .cap {{ color: {TEXT_2}; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }}
 
 /* ---- motion: lift on hover, press on tap, respect reduced motion ---- */
