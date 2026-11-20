@@ -57,16 +57,19 @@ def header(result: ScenarioResult, pages: list, current: object) -> None:
     components.alert_ticker(result.alerts)
 
 
-def controls(titles: dict[str, str]) -> None:
-    """Draw the glass controls row: scenario select and risk slider with its live label."""
+def controls(titles: dict[str, str], scenario_key: str) -> None:
+    """Draw the glass control panel: dataset selector, risk slider and mode, then the problem-statement note."""
     with st.container(key="os_controls"):
-        scen, risk, label = st.columns([2.2, 3, 1.2], vertical_alignment="center")
+        scen, risk, label = st.columns([3.4, 3, 1], vertical_alignment="center")
         with scen:
-            st.selectbox("Scenario", list(titles), format_func=lambda k: titles[k], key="scenario")
+            components.dataset_label(len(titles))
+            st.selectbox("Dataset", list(titles), format_func=lambda k: titles[k], key="scenario",
+                         label_visibility="collapsed")
         with risk:
             st.slider("Cost focus ⟷ Safety focus", 0.0, 1.0, step=0.05, key="risk")
         with label:
             components.risk_pill(config.risk_label(st.session_state["risk"]))
+        components.problem_strip(scenario_key)
 
 
 def main() -> None:
@@ -82,8 +85,7 @@ def main() -> None:
              for i, (title, path, icon, fn) in enumerate(PAGES)]
     current = st.navigation(pages, position="hidden")
     header(result, pages, current)
-    controls(titles)
-    components.problem_strip(result.scenario.key)
+    controls(titles, result.scenario.key)
     current.run()
 
 

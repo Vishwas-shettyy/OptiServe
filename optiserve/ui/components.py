@@ -227,12 +227,12 @@ PROBLEM_COVERAGE: list[tuple[str, str, tuple[str, ...]]] = [
 
 
 def problem_strip(scenario_key: str) -> None:
-    """Render the slim quote strip linking the scenario to the problem statement; unknown keys render nothing."""
+    """Render the problem-statement note (bottom section of the control panel); unknown keys render nothing."""
     if scenario_key not in PROBLEM_QUOTES:
         return
     label, quote, solved = PROBLEM_QUOTES[scenario_key]
-    _md(f'<div class="os-quote" role="note"><span class="qi">{icon("quote", 20)}</span>'
-        f'<div class="body"><div class="lab">{_e(label)}</div><div class="q">“{_e(quote)}”</div></div>'
+    _md(f'<div class="os-quote" role="note"><span class="qi">{icon("notebook-pen", 20)}</span>'
+        f'<div class="body"><div class="lab">{_e(label)}</div><div class="q">{_e(quote)}</div></div>'
         f'<span class="tag">{icon("check-circle", 14)}Solved by: {_e(solved)}</span></div>')
 
 
@@ -249,6 +249,12 @@ def problem_coverage(scenario_key: str) -> None:
 def muted_note(text: str) -> None:
     """Render a small muted footnote line."""
     _md(f'<div class="os-muted">{icon("info", 14)}{_e(text)}</div>')
+
+
+def dataset_label(count: int) -> None:
+    """Render the DATASET label row above the scenario selector."""
+    _md(f'<div class="os-dataset">{icon("database", 16)}<span class="lab">Dataset</span>'
+        f'<span class="cnt">· {count} scenarios</span></div>')
 
 
 def risk_pill(label: str) -> None:

@@ -162,21 +162,34 @@ html, [data-testid="stMain"] {{ scrollbar-gutter: stable; }}
   .os-ticker .pulse::after {{ display: none; }}
 }}
 
-/* ---- glass controls row ---- */
+/* ---- unified control panel: dataset · risk · mode, divider, problem-statement note ---- */
 .st-key-os_controls {{ background: {GLASS_BG}; -webkit-backdrop-filter: blur(16px) saturate(160%);
   backdrop-filter: blur(16px) saturate(160%); border: 1px solid {GLASS_BORDER}; border-radius: 20px;
-  box-shadow: {GLASS_SHADOW}; padding: 10px 20px 4px; margin: 4px 0 8px; }}
-.os-risk {{ display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding-top: 18px; }}
+  box-shadow: {GLASS_SHADOW}; padding: 14px 20px 18px; margin: 4px 0 8px; gap: 12px; }}
+.os-dataset {{ display: flex; align-items: center; gap: 6px; color: {ACCENT}; margin-bottom: 6px; }}
+.os-dataset .lab {{ font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }}
+.os-dataset .cnt {{ font-size: 12px; font-weight: 500; color: {MUTED}; }}
+.st-key-scenario .react-aria-ComboBox > div {{ box-sizing: border-box; height: 48px; min-height: 48px;
+  background: {ACCENT_TINT} !important; border: 1.5px solid {ACCENT} !important; border-radius: 12px !important;
+  transition: transform .15s ease, box-shadow .15s ease; }}
+.st-key-scenario .react-aria-ComboBox > div:hover {{ transform: translateY(-2px); box-shadow: 0 6px 18px rgba(37,99,235,.18); }}
+.st-key-scenario .react-aria-ComboBox input {{ height: 100%; background: transparent; font-size: 16px; font-weight: 600;
+  color: {TEXT}; -webkit-text-fill-color: {TEXT}; }}
+.st-key-scenario .react-aria-ComboBox button {{ height: 100%; background: transparent; color: {ACCENT}; }}
+@media (prefers-reduced-motion: reduce) {{ .st-key-scenario .react-aria-ComboBox > div:hover {{ transform: none; }} }}
+.os-risk {{ display: flex; align-items: center; gap: 6px; justify-content: flex-end; }}
+.os-risk .cap {{ color: {MUTED}; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }}
+.os-risk .os-pill {{ height: 26px; padding: 0 10px; font-size: 12px; font-weight: 600; box-sizing: border-box; }}
 
-/* ---- problem-statement quote strip (under the controls row) ---- */
-.os-quote {{ display: flex; align-items: center; gap: 14px; padding: 10px 16px 10px 14px; margin: -8px 0 0;
-  background: {GLASS_BG}; -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%);
-  border: 1px solid {GLASS_BORDER}; border-left: 3px solid {ACCENT}; border-radius: 14px; box-shadow: {GLASS_SHADOW}; }}
+/* bottom section: problem-statement note, separated by a thin divider */
+.os-quote {{ display: flex; align-items: center; gap: 14px; padding: 12px 0 0; margin: 0;
+  border-top: 1px solid rgba(15,23,42,.06); }}
 .os-quote .qi {{ display: inline-flex; flex: none; width: 36px; height: 36px; align-items: center; justify-content: center;
   border-radius: 10px; color: {ACCENT}; background: {ACCENT_TINT}; }}
 .os-quote .body {{ flex: 1; min-width: 0; }}
 .os-quote .lab {{ font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: {ACCENT}; }}
-.os-quote .q {{ font-size: 15px; font-style: italic; font-weight: 500; color: {TEXT}; line-height: 1.4; }}
+.os-quote .q {{ font-size: 15px; font-style: italic; font-weight: 500; color: {TEXT}; line-height: 1.4;
+  white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }}
 .os-quote .tag {{ flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
   font-size: 12.5px; font-weight: 600; white-space: nowrap; color: #15803D; background: {tint("#16A34A", .09)};
   border: 1px solid {tint("#16A34A", .28)}; }}
@@ -217,7 +230,6 @@ html, [data-testid="stMain"] {{ scrollbar-gutter: stable; }}
 .os-logrow .amt {{ font-family: {FONT_MONO}; font-variant-numeric: tabular-nums; font-size: 12.5px; font-weight: 600;
   white-space: nowrap; }}
 .os-muted {{ display: flex; align-items: center; gap: 6px; color: {MUTED}; font-size: 12px; margin: 4px 0 0; }}
-.os-risk .cap {{ color: {TEXT_2}; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }}
 
 /* ---- motion: lift on hover, press on tap, respect reduced motion ---- */
 @keyframes os-rise {{ from {{ opacity: 0; transform: translateY(6px); }} to {{ opacity: 1; transform: none; }} }}
