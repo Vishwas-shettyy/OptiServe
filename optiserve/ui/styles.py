@@ -9,9 +9,10 @@ SURFACE = "#FFFFFF"
 BORDER = "#E6E8EF"
 SHADOW = "0 1px 2px rgba(16,24,40,.06)"
 RADIUS = "14px"
-SIDEBAR_BG = "#0B1220"
-SIDEBAR_TEXT = "#E2E8F0"
-SIDEBAR_MUTED = "#94A3B8"
+GLASS_BG = "rgba(255,255,255,0.65)"
+GLASS_BORDER = "rgba(255,255,255,0.7)"
+GLASS_SHADOW = "0 8px 32px rgba(15,23,42,0.08)"
+HOVER_SHADOW = "0 12px 28px rgba(15,23,42,.12)"
 TEXT = "#0F172A"
 TEXT_2 = "#475569"
 MUTED = "#94A3B8"
@@ -43,48 +44,105 @@ CSS = f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-/* ---- base ---- */
+/* ---- base: light page with soft blurred colour washes so the glass reads ---- */
 html, body, .stApp, [class*="st-"], button, input, select, textarea {{ font-family: {FONT}; }}
-.stApp {{ background: {BG}; color: {TEXT}; font-size: 14px; }}
+[data-testid="stIconMaterial"], .material-symbols-rounded {{ font-family: "Material Symbols Rounded" !important; }}
+.stApp {{ color: {TEXT}; font-size: 14px; background:
+  radial-gradient(640px 480px at 8% -4%, rgba(37,99,235,.10), transparent 70%),
+  radial-gradient(560px 420px at 92% 6%, rgba(124,58,237,.08), transparent 70%),
+  radial-gradient(720px 520px at 55% 105%, rgba(56,189,248,.08), transparent 70%), {BG};
+  background-attachment: fixed; }}
 #MainMenu, footer, [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"],
-.stDeployButton, [data-testid="stAppDeployButton"] {{ display: none !important; }}
-header[data-testid="stHeader"] {{ background: transparent; height: 2.5rem; }}
-.block-container, [data-testid="stMainBlockContainer"] {{ max-width: 1440px; padding-top: 1.5rem; padding-bottom: 2rem; }}
+.stDeployButton, [data-testid="stAppDeployButton"], header[data-testid="stHeader"],
+section[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"], [data-testid="stExpandSidebarButton"]
+{{ display: none !important; }}
+.block-container, [data-testid="stMainBlockContainer"] {{ max-width: 1440px; padding-top: 12px; padding-bottom: 2rem; }}
 h1 {{ font-size: 28px !important; font-weight: 700 !important; color: {TEXT}; letter-spacing: -.01em; }}
 h2, h3 {{ font-size: 18px !important; font-weight: 600 !important; color: {TEXT}; }}
 
-/* ---- sidebar ---- */
-section[data-testid="stSidebar"] {{ background: {SIDEBAR_BG}; border-right: 1px solid #1E293B; }}
-section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
-section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
-section[data-testid="stSidebar"] [data-testid="stCaptionContainer"],
-section[data-testid="stSidebar"] [role="radiogroup"] label p {{ color: {SIDEBAR_TEXT}; }}
-section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {{ color: {SIDEBAR_MUTED}; }}
-section[data-testid="stSidebar"] [data-testid="stSliderTickBarMin"],
-section[data-testid="stSidebar"] [data-testid="stSliderTickBarMax"] {{ color: {SIDEBAR_MUTED}; }}
-.os-logo {{ display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; color: #FFFFFF; }}
-.os-logo .mark {{ width: 32px; height: 32px; border-radius: 9px; background: {ACCENT}; color: #fff;
-  display: grid; place-items: center; font-size: 17px; font-weight: 800; }}
-.os-sub {{ color: {SIDEBAR_MUTED}; font-size: 13px; margin: 2px 0 16px 0; }}
-.os-footer {{ color: {SIDEBAR_MUTED}; font-size: 12px; margin-top: 32px; line-height: 1.5;
-  border-top: 1px solid #1E293B; padding-top: 16px; }}
-.os-side-label {{ color: {SIDEBAR_MUTED}; font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: .06em; margin: 16px 0 6px 0; }}
-.os-risk {{ color: {SIDEBAR_MUTED}; font-size: 13px; display: flex; align-items: center; gap: 8px; margin: -6px 0 8px 0; }}
-section[data-testid="stSidebar"] [role="radiogroup"] {{ gap: 2px; }}
-section[data-testid="stSidebar"] [role="radiogroup"] label {{ width: 100%; padding: 8px 12px; margin: 0;
-  border-radius: 10px; cursor: pointer; transition: background .15s ease; }}
-section[data-testid="stSidebar"] [role="radiogroup"] label > div:first-child {{ display: none; }}
-section[data-testid="stSidebar"] [role="radiogroup"] label:hover {{ background: rgba(148,163,184,.12); }}
-section[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) {{ background: rgba(37,99,235,.28); }}
-section[data-testid="stSidebar"] [role="radiogroup"] label:has(input:checked) p {{ color: #FFFFFF; font-weight: 600; }}
-section[data-testid="stSidebar"] [role="radiogroup"] label p {{ font-size: 14px; }}
+/* ---- glass header (sticky) ---- */
+[data-testid="stLayoutWrapper"]:has(> .st-key-os_header) {{ position: sticky; top: 12px; z-index: 1000; }}
+.st-key-os_header {{ background: {GLASS_BG};
+  -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid {GLASS_BORDER}; border-radius: 20px; box-shadow: {GLASS_SHADOW}; padding: 14px 20px 10px; }}
+.os-brand {{ display: flex; align-items: center; gap: 12px; min-width: 0; }}
+.os-brand .mark {{ width: 36px; height: 36px; border-radius: 10px; background: {ACCENT}; color: #fff; flex: none;
+  display: grid; place-items: center; font-size: 18px; font-weight: 800; box-shadow: 0 4px 12px rgba(37,99,235,.35); }}
+.os-brand .word {{ font-size: 17px; font-weight: 800; letter-spacing: .08em; color: {TEXT}; }}
+.os-brand .divider {{ width: 1px; height: 30px; background: {BORDER}; flex: none; }}
+.os-brand .tag {{ min-width: 0; }}
+.os-brand .name {{ font-size: 14px; font-weight: 600; color: {TEXT}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.os-brand .status {{ display: flex; align-items: center; gap: 6px; font-size: 12px; color: #16A34A; font-weight: 500; }}
+.os-brand .live {{ width: 7px; height: 7px; border-radius: 50%; background: #16A34A; box-shadow: 0 0 0 3px rgba(22,163,74,.18); }}
+.os-icon {{ flex: none; vertical-align: -3px; }}
+.os-right {{ display: flex; justify-content: flex-end; align-items: center; gap: 14px; }}
+.os-dark-pill {{ display: inline-flex; align-items: center; gap: 8px; background: {TEXT}; color: #F8FAFC;
+  border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; white-space: nowrap;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; }}
+.os-datetime {{ color: {TEXT_2}; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }}
+.os-datetime span {{ display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }}
+.st-key-os_header .stDownloadButton button {{ border-radius: 999px; border: 1px solid {ACCENT}; background: transparent;
+  color: {ACCENT}; font-weight: 600; padding: 4px 14px; min-height: 36px; white-space: nowrap; }}
+.st-key-os_header .stDownloadButton button:hover {{ background: {ACCENT_TINT}; }}
+.st-key-os_header .stDownloadButton {{ display: flex; justify-content: flex-end; }}
 
-/* ---- motion ---- */
+/* ---- nav pills ---- */
+.st-key-os_nav {{ border-top: 1px solid rgba(15,23,42,.06); padding-top: 8px; margin-top: 2px; }}
+.st-key-os_nav [data-testid="stPageLink"] a {{ border-radius: 999px; padding: 6px 14px; color: {TEXT_2};
+  transition: background .2s ease, color .2s ease; }}
+.st-key-os_nav [data-testid="stPageLink"] a:hover {{ background: rgba(15,23,42,.05); color: {TEXT}; }}
+.st-key-os_nav [data-testid="stPageLink"] a p {{ font-weight: 600; font-size: 14px; color: inherit; }}
+.st-key-os_nav [data-testid="stPageLink"] a [data-testid="stIconMaterial"] {{ color: inherit; }}
+.st-key-nav_active [data-testid="stPageLink"] a {{ background: {ACCENT_TINT}; color: {ACCENT}; }}
+.st-key-nav_active [data-testid="stPageLink"] a:hover {{ background: {ACCENT_TINT}; color: {ACCENT}; }}
+
+/* ---- glass controls row ---- */
+.st-key-os_controls {{ background: {GLASS_BG}; -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%); border: 1px solid {GLASS_BORDER}; border-radius: 20px;
+  box-shadow: {GLASS_SHADOW}; padding: 10px 20px 4px; margin: 4px 0 8px; }}
+.os-risk {{ display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding-top: 18px; }}
+.os-risk .cap {{ color: {TEXT_2}; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }}
+
+/* ---- motion: lift on hover, press on tap, respect reduced motion ---- */
 @keyframes os-rise {{ from {{ opacity: 0; transform: translateY(6px); }} to {{ opacity: 1; transform: none; }} }}
-.os-card, .os-kpi, .os-banner-insight, .os-alert {{ animation: os-rise .25s ease-out both; }}
-.os-card, .os-kpi {{ transition: transform .15s ease, box-shadow .15s ease; }}
-.os-card:hover, .os-kpi:hover {{ transform: translateY(-2px); box-shadow: 0 6px 16px rgba(16,24,40,.08); }}
+.os-card, .os-kpi, .os-banner-insight, .os-alert, .os-action {{ animation: os-rise .25s ease-out both; }}
+.os-card, .os-kpi, .os-alert, .os-action, .os-stone, [data-testid="stVerticalBlockBorderWrapper"],
+[class*="st-key-card_"] {{ transition: transform .2s ease, box-shadow .2s ease; }}
+.os-card:hover, .os-kpi:hover, .os-alert:hover, .os-stone:hover, [data-testid="stVerticalBlockBorderWrapper"]:hover,
+[class*="st-key-card_"]:hover {{ transform: translateY(-4px); box-shadow: {HOVER_SHADOW}; }}
+.os-action:hover {{ transform: translateY(-2px); box-shadow: {HOVER_SHADOW}; }}
+.os-card:active, .os-kpi:active, .os-alert:active, .os-action:active, .os-stone:active,
+[data-testid="stVerticalBlockBorderWrapper"]:active, [class*="st-key-card_"]:active {{ transform: scale(.98); }}
+@media (prefers-reduced-motion: reduce) {{
+  *, *::before, *::after {{ animation: none !important; transition: none !important; }}
+  .os-card:hover, .os-kpi:hover, .os-alert:hover, .os-action:hover, .os-stone:hover,
+  [data-testid="stVerticalBlockBorderWrapper"]:hover, [class*="st-key-card_"]:hover,
+  .os-card:active, .os-kpi:active, .os-alert:active, .os-action:active, .os-stone:active,
+  [class*="st-key-card_"]:active {{ transform: none !important; }}
+}}
+
+/* ---- bordered Streamlit containers as cards ---- */
+[class*="st-key-card_"] {{ background: {SURFACE}; border: 1px solid {BORDER} !important; border-radius: 16px;
+  box-shadow: {SHADOW}; padding: 18px 20px; }}
+[class*="st-key-card_"] [data-testid="stPlotlyChart"] {{ border: 0; box-shadow: none; padding: 0; margin: 0; background: transparent; }}
+.os-card-title {{ display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }}
+.os-card-title .title {{ display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; color: {TEXT}; }}
+.os-card-title .ic {{ color: {ACCENT}; display: inline-flex; }}
+.os-card-title .help {{ color: {TEXT_2}; font-size: 13px; margin-top: 2px; }}
+.os-card-title .right {{ display: flex; gap: 6px; flex-wrap: wrap; }}
+
+/* ---- priority actions ---- */
+.os-actions {{ display: grid; gap: 8px; }}
+.os-action {{ display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px;
+  border: 1px solid {BORDER}; border-radius: 12px; padding: 10px 12px; background: {SURFACE}; cursor: pointer; }}
+.os-action .what {{ min-width: 0; }}
+.os-action .pillcol {{ margin-bottom: 4px; }}
+.os-action .name {{ font-weight: 600; font-size: 14px; color: {TEXT}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.os-action .detail {{ color: {TEXT_2}; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.os-action .amt {{ font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }}
+.os-action .chev {{ color: {MUTED}; display: inline-flex; }}
+.os-action:hover .chev {{ color: {ACCENT}; }}
+.os-action.empty {{ display: flex; gap: 8px; color: #16A34A; font-weight: 500; cursor: default; }}
 
 /* ---- cards ---- */
 .os-card {{ background: {SURFACE}; border: 1px solid {BORDER}; border-radius: {RADIUS}; box-shadow: {SHADOW};
@@ -101,7 +159,7 @@ section[data-testid="stSidebar"] [role="radiogroup"] label p {{ font-size: 14px;
 .os-rec .stat .value {{ color: {TEXT}; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }}
 .os-check {{ display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid {BORDER}; }}
 .os-check:last-child {{ border-bottom: 0; padding-bottom: 0; }}
-.os-check .icon {{ font-size: 16px; line-height: 1.4; }}
+.os-check .icon {{ display: inline-flex; padding-top: 2px; }}
 .os-check .rule {{ font-weight: 600; color: {TEXT}; font-size: 14px; }}
 .os-check .state {{ font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-left: 8px; }}
 .os-check .msg {{ color: {TEXT_2}; font-size: 13px; line-height: 1.45; margin-top: 2px; }}
@@ -124,24 +182,30 @@ section[data-testid="stSidebar"] [role="radiogroup"] label p {{ font-size: 14px;
 /* ---- insight banner ---- */
 .os-banner-insight {{ display: flex; gap: 12px; align-items: flex-start; border-radius: 12px; padding: 14px 18px;
   margin-bottom: 16px; font-size: 15px; font-weight: 500; color: {TEXT}; border: 1px solid; }}
-.os-banner-insight .icon {{ font-size: 18px; line-height: 1.3; }}
+.os-banner-insight .icon {{ display: inline-flex; padding-top: 1px; }}
 
 /* ---- KPI cards ---- */
-.os-kpi-row {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 16px; }}
-.os-kpi {{ background: {SURFACE}; border: 1px solid {BORDER}; border-radius: {RADIUS}; box-shadow: {SHADOW};
-  padding: 16px 20px; height: 100%; min-width: 0; border-top: 3px solid var(--tone, {BORDER}); }}
-.os-kpi .label, .os-kpi .value, .os-kpi .hint {{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.os-kpi-row {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 8px 0 16px; }}
+.os-kpi {{ display: flex; gap: 14px; align-items: flex-start; background: {SURFACE}; border: 1px solid {BORDER};
+  border-radius: 16px; box-shadow: {SHADOW}; padding: 16px 18px; height: 100%; min-width: 0; }}
+.os-kpi .tile {{ width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; flex: none; }}
+.os-kpi .body {{ flex: 1; min-width: 0; }}
+.os-kpi .vrow {{ display: flex; justify-content: space-between; align-items: center; gap: 8px; }}
+.os-kpi .vrow .value {{ flex: 0 0 auto; }}
+.os-kpi .os-spark {{ flex: 0 1 72px; min-width: 0; width: 72px; height: 28px; }}
+.os-kpi .label, .os-kpi .value, .os-kpi .hint, .os-kpi .delta {{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
 .os-kpi .label {{ color: {TEXT_2}; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }}
-.os-kpi .value {{ color: {TEXT}; font-size: clamp(22px, 2.1vw, 30px); font-weight: 700; margin-top: 4px;
+.os-kpi .value {{ color: {TEXT}; font-size: clamp(22px, 2vw, 28px); font-weight: 700; margin-top: 2px;
   font-variant-numeric: tabular-nums; line-height: 1.2; }}
-.os-kpi .hint {{ color: {MUTED}; font-size: 12px; margin-top: 4px; }}
+.os-kpi .hint, .os-kpi .delta {{ color: {TEXT_2}; font-size: 12px; margin-top: 4px; }}
+.os-kpi .delta span {{ font-weight: 700; }}
 
 /* ---- alert rows ---- */
 .os-alert {{ display: block; background: {SURFACE}; border: 1px solid {BORDER};
   border-left: 4px solid {ACCENT}; border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; color: {TEXT};
   font-size: 14px; line-height: 1.45; box-shadow: {SHADOW}; }}
 .os-alert.os-alert-row {{ display: flex; gap: 10px; align-items: flex-start; }}
-.os-alert .icon {{ font-size: 16px; line-height: 1.4; }}
+.os-alert .icon {{ display: inline-flex; padding-top: 1px; }}
 .os-alert .sev {{ font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: .04em; margin-right: 8px; }}
 
 /* ---- tables ---- */
@@ -206,8 +270,8 @@ section[data-testid="stSidebar"] [role="radiogroup"] label p {{ font-size: 14px;
   padding-bottom: 12px; border-bottom: 6px solid #14532d; }}
 .os-stone {{ background: linear-gradient(180deg, #475569, #334155 70%, #1e293b); border-radius: 90px 90px 10px 10px;
   padding: 26px 14px 16px; text-align: center; color: #e2e8f0; border: 1px solid #64748b;
-  box-shadow: 0 8px 18px rgba(0,0,0,.45); transition: transform .15s ease, box-shadow .15s ease; cursor: help; }}
-.os-stone:hover {{ transform: translateY(-4px); box-shadow: 0 14px 26px rgba(0,0,0,.55); }}
+  box-shadow: 0 8px 18px rgba(0,0,0,.45); cursor: help; }}
+.os-stone:hover {{ box-shadow: 0 14px 26px rgba(0,0,0,.55) !important; }}
 .os-stone .pill-wrap {{ margin-top: 10px; }}
 .os-hint {{ position: relative; color: #94a3b8; font-size: 12px; margin-top: 12px; }}
 .os-empty-yard {{ color: #cbd5e1; padding: 24px 0; }}

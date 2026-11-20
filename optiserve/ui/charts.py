@@ -138,3 +138,30 @@ def test_week_chart(series: pd.DataFrame) -> go.Figure:
                           layer="below")
     fig.update_yaxes(rangemode="tozero", tickformat=",")
     return layout(fig, 380, "Requests per hour")
+
+
+def fleet_capacity_chart(actual: pd.DataFrame, forecast: pd.DataFrame) -> go.Figure:
+    """Build the fleet-wide chart: actual + expected demand vs current and planned capacity.
+
+    `actual` has timestamp, requests; `forecast` has timestamp, expected, current_cap, planned_cap.
+    """
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=actual["timestamp"], y=actual["requests"], name="Actual demand",
+                             line=dict(color=ACTUAL_COLOR, width=1.6), hovertemplate="%{y:,.0f}"))
+    fig.add_trace(go.Scatter(x=forecast["timestamp"], y=forecast["expected"], name="Expected demand",
+                             line=dict(color=EXPECTED_COLOR, width=2), fill="tozeroy",
+                             fillcolor=tint(ACCENT, .08), hovertemplate="%{y:,.0f}"))
+    fig.add_trace(go.Scatter(x=forecast["timestamp"], y=forecast["current_cap"], name="Current capacity",
+                             line=dict(color=CURRENT_COLOR, dash="dash", width=1.5, shape="hv"),
+                             hovertemplate="%{y:,.0f}"))
+    fig.add_trace(go.Scatter(x=forecast["timestamp"], y=forecast["planned_cap"], name="Planned capacity",
+                             line=dict(color=PLANNED_COLOR, width=2, shape="hv"), hovertemplate="%{y:,.0f}"))
+    if not forecast.empty:
+        split = forecast["timestamp"].min()
+        fig.add_vline(x=split, line=dict(color=GRID_STRONG, dash="dot", width=1))
+        fig.add_annotation(x=split, y=0.99, yref="paper", text="Forecast →", showarrow=False, xanchor="left",
+                           yanchor="top", xshift=4, font=dict(color=TEXT_2, size=11))
+    fig.update_yaxes(rangemode="tozero", tickformat=",")
+    layout(fig, 340, "Requests per hour")
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=8, r=8, t=40, b=8))
+    return fig

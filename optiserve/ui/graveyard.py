@@ -61,7 +61,7 @@ def formal_view(profile: pd.DataFrame, key: str) -> None:
     components.table_card("All servers", ["Server", "Status", "Avg CPU", "Peak CPU", "Cost / month",
                                           "Wasted / month", "Action"], rows, numeric=(2, 3, 4, 5))
     st.download_button("Download as CSV", csv_table(profile).to_csv(index=False).encode("utf-8"),
-                       file_name=f"optiserve_servers_{key}.csv", mime="text/csv", icon="⬇️")
+                       file_name=f"optiserve_servers_{key}.csv", mime="text/csv", icon=":material/download:")
 
 
 def render(result: ScenarioResult) -> None:

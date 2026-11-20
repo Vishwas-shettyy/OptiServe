@@ -5,14 +5,21 @@ from collections.abc import Sequence
 
 import streamlit as st
 
+from ui.icons import icon
 from ui.styles import ACCENT, MUTED, SEVERITY_COLORS, STATUS_COLORS, TEXT_2, TONE_COLORS, tint
 
 ACTION_LABELS: dict[str, str] = {
     "scale_down": "Reduce servers", "scale_up": "Add servers", "schedule": "Smart schedule", "hold": "Keep as is",
 }
 ACTION_TONES: dict[str, str] = {"scale_down": "success", "scale_up": "warning", "schedule": "info", "hold": "neutral"}
-TONE_ICONS: dict[str, str] = {"info": "💡", "success": "✅", "warning": "⚠️", "danger": "⛔", "neutral": "ℹ️"}
-SEVERITY_ICONS: dict[str, str] = {"critical": "⛔", "warning": "⚠️", "info": "ℹ️"}
+TONE_ICONS: dict[str, str] = {"info": "sparkles", "success": "check-circle", "warning": "alert-triangle",
+                              "danger": "octagon-x", "neutral": "info"}
+SEVERITY_ICONS: dict[str, str] = {"critical": "octagon-x", "warning": "alert-triangle", "info": "info"}
+CURRENCY = "₹"
+CHECK_ICONS: dict[str, str] = {"pass": "check-circle", "adjusted": "alert-circle", "blocked": "octagon-x"}
+CHECK_LABELS: dict[str, str] = {"pass": "Passed", "adjusted": "Adjusted", "blocked": "Blocked"}
+CHECK_TONES: dict[str, str] = {"pass": "success", "adjusted": "warning", "blocked": "danger"}
+RISK_TONES: dict[str, str] = {"Cheapest": "warning", "Balanced": "info", "Safest": "success"}
 
 
 def _e(text: object) -> str:
@@ -53,7 +60,7 @@ def glossary_tip(term: str, text: str) -> str:
 
 
 def page_header(title: str, subtitle: str = "", chip: str = "") -> None:
-    """Render the page title, one-line subtitle and a scenario chip on the right."""
+    """Render the page title, one-line subtitle and an optional chip on the right."""
     sub = f'<div class="subtitle">{_e(subtitle)}</div>' if subtitle else ""
     right = pill(chip, ACCENT) if chip else ""
     _md(f'<div class="os-header"><div><div class="title">{_e(title)}</div>{sub}</div><div>{right}</div></div>')
@@ -63,20 +70,49 @@ def insight_banner(text: str, tone: str = "info") -> None:
     """Render a one-sentence insight banner in the given tone (info, success, warning, danger, neutral)."""
     color = _tone(tone)
     _md(f'<div class="os-banner-insight" style="background:{tint(color, .07)};border-color:{tint(color, .28)}">'
-        f'<span class="icon">{TONE_ICONS.get(tone, "💡")}</span><span>{_e(text)}</span></div>')
+        f'<span class="icon" style="color:{color}">{icon(TONE_ICONS.get(tone, "info"))}</span>'
+        f'<span>{_e(text)}</span></div>')
 
 
-def kpi_html(label: str, value: str, hint: str = "", tone: str = "neutral", tooltip: str = "") -> str:
-    """Return HTML for one KPI card; tooltip shows on hover over the value."""
+# ---- KPI cards ----------------------------------------------------------------
+
+def sparkline(values: Sequence[float], color: str, width: int = 72, height: int = 28) -> str:
+    """Return a small inline SVG sparkline (line + soft area) for a series of numbers."""
+    vals = [float(v) for v in values if v == v]
+    if len(vals) < 2:
+        return ""
+    lo, hi = min(vals), max(vals)
+    span = (hi - lo) or 1.0
+    pts = [(i * width / (len(vals) - 1), height - 3 - (v - lo) / span * (height - 6)) for i, v in enumerate(vals)]
+    line = " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
+    area = f"0,{height} {line} {width},{height}"
+    return (f'<svg class="os-spark" width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
+            f'preserveAspectRatio="none" aria-hidden="true"><polygon points="{area}" fill="{tint(color, .12)}"/>'
+            f'<polyline points="{line}" fill="none" stroke="{color}" stroke-width="1.75" '
+            f'stroke-linejoin="round" stroke-linecap="round"/></svg>')
+
+
+def kpi_html(label: str, value: str, hint: str = "", tone: str = "neutral", tooltip: str = "", icon_name: str = "",
+             delta: str = "", delta_up: bool = True, delta_good: bool = True, spark: Sequence[float] = ()) -> str:
+    """Return HTML for one KPI card: icon tile, label, value, delta line and optional sparkline."""
+    color = _tone(tone) if tone != "neutral" else TEXT_2
     tip = f' title="{_e(tooltip)}"' if tooltip else ""
-    top = _tone(tone) if tone != "neutral" else "#E6E8EF"
-    return (f'<div class="os-kpi" style="--tone:{top}"><div class="label">{_e(label)}</div>'
-            f'<div class="value"{tip}>{_e(value)}</div><div class="hint">{_e(hint)}</div></div>')
+    tile = (f'<div class="tile" style="color:{color};background:{tint(color, .10)}">{icon(icon_name, 22)}</div>'
+            if icon_name else "")
+    if delta:
+        dcol = TONE_COLORS["success"] if delta_good else TONE_COLORS["danger"]
+        foot = (f'<div class="delta"><span style="color:{dcol}">{"↑" if delta_up else "↓"}</span> '
+                f'{_e(delta)}</div>')
+    else:
+        foot = f'<div class="hint">{_e(hint)}</div>'
+    spark_svg = sparkline(spark, color) if len(spark) else ""
+    return (f'<div class="os-kpi">{tile}<div class="body"><div class="label">{_e(label)}</div>'
+            f'<div class="vrow"><div class="value"{tip}>{_e(value)}</div>{spark_svg}</div>{foot}</div></div>')
 
 
-def kpi_card(label: str, value: str, hint: str = "", tone: str = "neutral", tooltip: str = "") -> None:
-    """Render one KPI card."""
-    _md(kpi_html(label, value, hint, tone, tooltip))
+def kpi_card(label: str, value: str, hint: str = "", tone: str = "neutral", tooltip: str = "", **extra: object) -> None:
+    """Render one KPI card (extra: icon_name, delta, delta_up, delta_good, spark)."""
+    _md(kpi_html(label, value, hint, tone, tooltip, **extra))
 
 
 def kpi_row(items: Sequence[dict | Sequence]) -> None:
@@ -89,7 +125,7 @@ def alert_row(severity: str, service: str, message: str) -> None:
     """Render one alert row coloured and iconed by severity."""
     color = SEVERITY_COLORS.get(severity, MUTED)
     _md(f'<div class="os-alert os-alert-row" style="border-left-color:{color}">'
-        f'<span class="icon">{SEVERITY_ICONS.get(severity, "•")}</span><div>'
+        f'<span class="icon" style="color:{color}">{icon(SEVERITY_ICONS.get(severity, "info"), 18)}</span><div>'
         f'<span class="sev" style="color:{color}">{_e(severity)}</span>'
         f'<b>{_e(service)}</b> — {_e(message)}</div></div>')
 
@@ -101,13 +137,6 @@ def section(title: str, help: str = "") -> None:
 
 
 # ---- formatting -------------------------------------------------------------
-
-CURRENCY = "₹"
-CHECK_ICONS: dict[str, str] = {"pass": "✅", "adjusted": "🟡", "blocked": "⛔"}
-CHECK_LABELS: dict[str, str] = {"pass": "Passed", "adjusted": "Adjusted", "blocked": "Blocked"}
-CHECK_TONES: dict[str, str] = {"pass": "success", "adjusted": "warning", "blocked": "danger"}
-RISK_PILL_COLORS: dict[str, str] = {"Cheapest": "#FBBF24", "Balanced": "#60A5FA", "Safest": "#4ADE80"}
-
 
 def money(value: float) -> str:
     """Format a rupee amount like ₹12,345."""
@@ -129,29 +158,59 @@ def server_range(lo: int, hi: int) -> str:
     return str(lo) if lo == hi else f"{lo}–{hi}"
 
 
-# ---- sidebar ----------------------------------------------------------------
+# ---- glass header & controls --------------------------------------------------
 
-def sidebar_brand() -> None:
-    """Render the logo mark, product name and subtitle."""
-    _md('<div class="os-logo"><span class="mark">O</span>OptiServe</div>'
-        '<div class="os-sub">Capacity-planning copilot</div>')
+def brand_block() -> None:
+    """Render the logo, product name, divider, tagline and engine status."""
+    _md('<div class="os-brand"><span class="mark">O</span><span class="word">OPTISERVE</span>'
+        '<span class="divider"></span><div class="tag"><div class="name">Capacity Planning Command Center</div>'
+        '<div class="status"><span class="live"></span>Engine online · Analysis ready</div></div></div>')
 
 
-def sidebar_label(text: str) -> None:
-    """Render a small uppercase label in the sidebar."""
-    _md(f'<div class="os-side-label">{_e(text)}</div>')
+def scenario_chip(title: str) -> None:
+    """Render the current scenario as a dark pill."""
+    _md(f'<div class="os-right"><span class="os-dark-pill">{icon("server", 16)}{_e(title)}</span></div>')
+
+
+def datetime_block(date_text: str, time_text: str) -> None:
+    """Render the date and time with small calendar and clock icons."""
+    _md(f'<div class="os-right os-datetime"><span>{icon("calendar", 16)}{_e(date_text)}</span>'
+        f'<span>{icon("clock", 16)}{_e(time_text)}</span></div>')
 
 
 def risk_pill(label: str) -> None:
-    """Render the live risk-mode label as a pill under the slider."""
-    color = RISK_PILL_COLORS.get(label, "#60A5FA")
-    _md(f'<div class="os-risk">Mode <span class="os-pill" style="color:{color};background:{tint(color, .16)}">'
-        f'<span class="dot"></span>{_e(label)}</span></div>')
+    """Render the live risk-mode label as a pill."""
+    color = _tone(RISK_TONES.get(label, "info"))
+    _md(f'<div class="os-risk"><span class="cap">Mode</span>{pill(label, color)}</div>')
 
 
-def sidebar_footer(text: str) -> None:
-    """Render the muted footer note."""
-    _md(f'<div class="os-footer">{_e(text)}</div>')
+def card_title(title: str, help: str = "", icon_name: str = "", right: str = "") -> None:
+    """Render a title row inside a bordered card container; `right` is pre-built HTML."""
+    ic = f'<span class="ic">{icon(icon_name, 18)}</span>' if icon_name else ""
+    sub = f'<div class="help">{_e(help)}</div>' if help else ""
+    _md(f'<div class="os-card-title"><div><div class="title">{ic}{_e(title)}</div>{sub}</div>'
+        f'<div class="right">{right}</div></div>')
+
+
+def status_counts(counts: dict[str, int]) -> str:
+    """Return HTML pills with the server count per status, in status order."""
+    return "".join(pill(f"{s} · {int(counts[s])}", c) for s, c in STATUS_COLORS.items() if counts.get(s))
+
+
+def priority_actions(rows: Sequence[dict]) -> None:
+    """Render priority action rows; each has pill (HTML), name, detail, amount and tone."""
+    if not rows:
+        _md(f'<div class="os-actions"><div class="os-action empty">{icon("check-circle", 18)}'
+            f'Nothing urgent — the fleet looks healthy.</div></div>')
+        return
+    items = "".join(
+        f'<div class="os-action"><div class="what"><div class="pillcol">{r["pill"]}</div><div class="name">{_e(r["name"])}</div>'
+        f'<div class="detail">{_e(r["detail"])}</div></div>'
+        f'<div class="amt" style="color:{_tone(r.get("tone", "neutral"))}">{_e(r["amount"])}</div>'
+        f'<span class="chev">{icon("chevron-right", 18)}</span></div>'
+        for r in rows
+    )
+    _md(f'<div class="os-actions">{items}</div>')
 
 
 # ---- cards ------------------------------------------------------------------
@@ -186,7 +245,8 @@ def text_card(title: str, text: str) -> None:
 def checklist(title: str, items: Sequence[dict]) -> None:
     """Render safety checks as a vertical checklist; each item has rule, status and message."""
     rows = "".join(
-        f'<div class="os-check"><span class="icon">{CHECK_ICONS.get(it["status"], "•")}</span><div>'
+        f'<div class="os-check"><span class="icon" style="color:{_tone(CHECK_TONES.get(it["status"], "neutral"))}">'
+        f'{icon(CHECK_ICONS.get(it["status"], "info"), 18)}</span><div>'
         f'<div class="rule">{_e(it["rule"])}<span class="state" '
         f'style="color:{_tone(CHECK_TONES.get(it["status"], "neutral"))}">'
         f'{_e(CHECK_LABELS.get(it["status"], it["status"]))}</span></div>'
@@ -200,8 +260,8 @@ def alerts_feed(alerts: Sequence[dict]) -> None:
     """Render alerts critical → info, or a calm empty state."""
     order = {"critical": 0, "warning": 1, "info": 2}
     if not alerts:
-        _md('<div class="os-alert os-alert-row" style="border-left-color:#16A34A"><span class="icon">✅</span>'
-            '<div>No alerts — the fleet looks healthy.</div></div>')
+        _md(f'<div class="os-alert os-alert-row" style="border-left-color:#16A34A"><span class="icon" '
+            f'style="color:#16A34A">{icon("check-circle", 18)}</span><div>No alerts — the fleet looks healthy.</div></div>')
         return
     for a in sorted(alerts, key=lambda a: order.get(a["severity"], 9)):
         alert_row(a["severity"], a["service"], a["message"])
