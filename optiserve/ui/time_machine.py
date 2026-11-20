@@ -76,7 +76,7 @@ def render_service(sr: ServiceResult) -> None:
             components.card_title("Replayed test week", "Real demand against both setups; red hours ran short of "
                                   "capacity.", "history")
             st.plotly_chart(charts.test_week_chart(bt["series"]), width="stretch", theme=None, key=f"tm_{sr.service}",
-                            config={"displayModeBar": False})
+                            config={"scrollZoom": False, "displayModeBar": False})
     with right:
         better = "more" if ours <= naive else "less"
         with st.container(border=True, key=f"card_acc_{sr.service}"):

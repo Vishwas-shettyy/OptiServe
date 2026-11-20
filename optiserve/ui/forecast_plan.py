@@ -93,12 +93,12 @@ def render(result: ScenarioResult) -> None:
                                   "likely range, against current and planned capacity.", "chart-line")
             st.plotly_chart(charts.demand_chart(hist, sr.forecast, sr.plan, sc.events[sc.events["service"] == name],
                                                 capacity_rps), width="stretch", theme=None,
-                            config={"displayModeBar": False})
+                            config={"scrollZoom": False, "displayModeBar": False})
         with st.container(border=True, key="card_servers"):
             components.card_title("Servers per hour", "The plan adds servers before busy hours and removes them "
                                   "when quiet.", "server")
             st.plotly_chart(charts.servers_chart(sr.plan), width="stretch", theme=None,
-                            config={"displayModeBar": False})
+                            config={"scrollZoom": False, "displayModeBar": False})
     with right:
         with st.container(border=True, key="card_rec"):
             components.card_title("Recommendation", "What to run next week.", "sparkles")

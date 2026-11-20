@@ -171,14 +171,34 @@ def brand_block() -> None:
 
 
 def scenario_chip(title: str) -> None:
-    """Render the current scenario as a dark pill."""
-    _md(f'<div class="os-right"><span class="os-dark-pill">{icon("server", 16)}{_e(title)}</span></div>')
+    """Render the current scenario as an amber pill sized to match the Export button."""
+    st.markdown(f'<div class="os-scenario-pill" title="Scenario: {_e(title)}">{icon("server", 18)}'
+                f'<span class="txt">{_e(title)}</span></div>', unsafe_allow_html=True, width="content")
 
 
 def datetime_block(date_text: str, time_text: str) -> None:
     """Render the date and time with small calendar and clock icons."""
-    _md(f'<div class="os-right os-datetime"><span>{icon("calendar", 16)}{_e(date_text)}</span>'
-        f'<span>{icon("clock", 16)}{_e(time_text)}</span></div>')
+    st.markdown(f'<div class="os-datetime"><span>{icon("calendar", 16)}{_e(date_text)}</span>'
+                f'<span>{icon("clock", 16)}{_e(time_text)}</span></div>', unsafe_allow_html=True, width="content")
+
+
+TICKER_STYLES: dict[str, tuple[str, str]] = {
+    "critical": ("Critical", "octagon-x"), "warning": ("Warning", "alert-triangle"), "ok": ("All clear", "check-circle"),
+}
+
+
+def alert_ticker(alerts: Sequence[dict]) -> None:
+    """Render a slim ticker with the highest-severity alert (critical > warning), or a green all-clear."""
+    order = {"critical": 0, "warning": 1}
+    top = sorted((a for a in alerts if a.get("severity") in order), key=lambda a: order[a["severity"]])
+    if top:
+        level, text = top[0]["severity"], f'{top[0]["service"]} — {top[0]["message"]}'
+    else:
+        level, text = "ok", "All systems within capacity"
+    label, ic = TICKER_STYLES[level]
+    _md(f'<div class="os-ticker {level}" role="status" aria-label="{_e(label)}: {_e(text)}">'
+        f'<span class="lead"><span class="pulse"></span>{icon(ic, 16)}<span class="lab">{_e(label)}</span></span>'
+        f'<div class="msg" aria-hidden="true"><div class="track"><span>{_e(text)}</span></div></div></div>')
 
 
 def risk_pill(label: str) -> None:

@@ -36,24 +36,23 @@ def plan_csv(result: ScenarioResult) -> bytes:
 
 
 def header(result: ScenarioResult, pages: list, current: object) -> None:
-    """Draw the sticky glass header: brand, scenario, export, date/time and nav pills."""
+    """Draw the sticky glass header (brand, scenario, export, date/time, centred nav) and the alert ticker."""
     now = datetime.now()
     with st.container(key="os_header"):
-        brand, chip, export, clock = st.columns([4.2, 2.8, 1.6, 2.2], vertical_alignment="center")
-        with brand:
-            components.brand_block()
-        with chip:
-            components.scenario_chip(result.scenario.title)
-        with export:
-            st.download_button("Export report", plan_csv(result), file_name=f"optiserve_plan_{result.scenario.key}.csv",
-                               mime="text/csv", icon=":material/download:", key="export_report")
-        with clock:
-            components.datetime_block(f"{now:%a %d %b}", f"{now:%H:%M}")
-        with st.container(key="os_nav", horizontal=True, gap="small"):
+        with st.container(key="os_top", horizontal=True, vertical_alignment="center", gap="small"):
+            with st.container(key="os_brand", width="stretch"):
+                components.brand_block()
+            with st.container(key="os_right", horizontal=True, vertical_alignment="center", width="content"):
+                components.scenario_chip(result.scenario.title)
+                st.download_button("Export report", plan_csv(result), file_name=f"optiserve_plan_{result.scenario.key}.csv",
+                                   mime="text/csv", icon=":material/download:", key="export_report")
+                components.datetime_block(f"{now:%a %d %b}", f"{now:%H:%M}")
+        with st.container(key="os_nav", horizontal=True, horizontal_alignment="center", gap="small"):
             for page in pages:
                 active = page.title == current.title
                 with st.container(key="nav_active" if active else f"nav_{page.url_path or 'home'}", width="content"):
                     st.page_link(page)
+    components.alert_ticker(result.alerts)
 
 
 def controls(titles: dict[str, str]) -> None:
@@ -70,10 +69,11 @@ def controls(titles: dict[str, str]) -> None:
 
 def main() -> None:
     """Render header, controls and the selected page."""
-    st.set_page_config(page_title="OptiServe", layout="wide", initial_sidebar_state="collapsed")
+    st.set_page_config(page_title="OptiServe · Capacity Command Center", page_icon="◆", layout="wide",
+                       initial_sidebar_state="collapsed")
     styles.inject_css()
     titles = dict(list_scenarios())
-    st.session_state.setdefault("scenario", next(iter(titles)))
+    st.session_state.setdefault("scenario", "office_hours" if "office_hours" in titles else next(iter(titles)))
     st.session_state.setdefault("risk", config.DEFAULT_RISK)
     result = cached_run(st.session_state["scenario"], round(float(st.session_state["risk"]), 2))
     pages = [st.Page(lambda fn=fn: fn(result), title=title, url_path=path, icon=icon, default=i == 0)

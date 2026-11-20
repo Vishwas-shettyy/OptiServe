@@ -120,7 +120,7 @@ def render(result: ScenarioResult) -> None:
                                   right=components.status_counts(result.profile["status"].value_counts().to_dict()))
             actual, future = fleet_series(result)
             st.plotly_chart(charts.fleet_capacity_chart(actual, future), width="stretch", theme=None,
-                            config={"displayModeBar": False})
+                            config={"scrollZoom": False, "displayModeBar": False})
     with right:
         with st.container(border=True, key="card_actions"):
             components.card_title("Priority actions", "Most urgent first.", "shield-check")

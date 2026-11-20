@@ -3,11 +3,13 @@
 import streamlit as st
 
 # Design tokens
-FONT = "Inter, system-ui, -apple-system, Segoe UI, sans-serif"
+FONT = 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
+FONT_HEAD = '"Outfit", Inter, system-ui, -apple-system, "Segoe UI", sans-serif'
+FONT_MONO = '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
 BG = "#F6F7FB"
 SURFACE = "#FFFFFF"
-BORDER = "#E6E8EF"
-SHADOW = "0 1px 2px rgba(16,24,40,.06)"
+BORDER = "rgba(148,163,184,0.25)"
+SHADOW = "0 4px 20px rgba(15,23,42,0.04)"
 RADIUS = "14px"
 GLASS_BG = "rgba(255,255,255,0.65)"
 GLASS_BORDER = "rgba(255,255,255,0.7)"
@@ -42,7 +44,7 @@ def tint(color: str, alpha: float = 0.10) -> str:
 
 CSS = f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 /* ---- base: light page with soft blurred colour washes so the glass reads ---- */
 html, body, .stApp, [class*="st-"], button, input, select, textarea {{ font-family: {FONT}; }}
@@ -57,49 +59,108 @@ html, body, .stApp, [class*="st-"], button, input, select, textarea {{ font-fami
 section[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"], [data-testid="stExpandSidebarButton"]
 {{ display: none !important; }}
 .block-container, [data-testid="stMainBlockContainer"] {{ max-width: 1440px; padding-top: 12px; padding-bottom: 2rem; }}
-h1 {{ font-size: 28px !important; font-weight: 700 !important; color: {TEXT}; letter-spacing: -.01em; }}
-h2, h3 {{ font-size: 18px !important; font-weight: 600 !important; color: {TEXT}; }}
+h1 {{ font-size: 28px !important; font-weight: 800 !important; color: {TEXT}; letter-spacing: -.01em; }}
+h2, h3 {{ font-size: 18px !important; font-weight: 700 !important; color: {TEXT}; }}
 
-/* ---- glass header (sticky) ---- */
+/* ---- typography: Outfit headings, Inter body, JetBrains Mono numbers ---- */
+h1, h2, h3, h4, .os-header .title, .os-section .title, .os-card-title .title, .os-card h4, .os-rec .name,
+.os-brand .word, .os-brand .name {{ font-family: {FONT_HEAD} !important; }}
+.os-header .title {{ font-weight: 800; }}
+.os-section .title, .os-card-title .title, .os-card h4, .os-rec .name, .os-brand .name {{ font-weight: 700; }}
+.os-kpi .value, .os-rec .stat .value, .os-split .m .value, .os-split .delta, .os-table .num, .os-datetime,
+.os-action .amt, .os-banner .big, .os-stone .cost, .os-bar-row .lbl b {{ font-family: {FONT_MONO};
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em; }}
+
+/* ---- scrollbars: slim, transparent track, stable gutter ---- */
+html, [data-testid="stMain"] {{ scrollbar-gutter: stable; }}
+::-webkit-scrollbar {{ width: 8px; height: 8px; }}
+::-webkit-scrollbar-track {{ background: transparent; }}
+::-webkit-scrollbar-thumb {{ background: rgba(148,163,184,0.4); border-radius: 999px; }}
+::-webkit-scrollbar-thumb:hover {{ background: rgba(148,163,184,0.7); }}
+@supports not selector(::-webkit-scrollbar) {{
+  * {{ scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.4) transparent; }}
+}}
+
+/* ---- glass header (sticky, always elevated) ---- */
 [data-testid="stLayoutWrapper"]:has(> .st-key-os_header) {{ position: sticky; top: 12px; z-index: 1000; }}
 .st-key-os_header {{ background: {GLASS_BG};
   -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%);
-  border: 1px solid {GLASS_BORDER}; border-radius: 20px; box-shadow: {GLASS_SHADOW}; padding: 14px 20px 10px; }}
+  border: 1px solid {GLASS_BORDER}; border-radius: 20px; box-shadow: {GLASS_SHADOW}; padding: 12px 20px 8px; }}
+.st-key-os_top {{ flex-wrap: nowrap !important; }}
+.st-key-os_brand {{ flex: 1 1 0 !important; min-width: 0 !important; }}
+.st-key-os_right {{ flex: 0 0 auto !important; flex-wrap: nowrap !important; gap: 12px !important; align-items: center !important; }}
+.st-key-os_right [data-testid="stElementContainer"], .st-key-os_right [data-testid="stMarkdownContainer"],
+.st-key-os_right [data-testid="stMarkdown"] {{ margin: 0 !important; display: flex; align-items: center; }}
 .os-brand {{ display: flex; align-items: center; gap: 12px; min-width: 0; }}
 .os-brand .mark {{ width: 36px; height: 36px; border-radius: 10px; background: {ACCENT}; color: #fff; flex: none;
   display: grid; place-items: center; font-size: 18px; font-weight: 800; box-shadow: 0 4px 12px rgba(37,99,235,.35); }}
-.os-brand .word {{ font-size: 17px; font-weight: 800; letter-spacing: .08em; color: {TEXT}; }}
+.os-brand .word {{ font-size: 18px; font-weight: 800; letter-spacing: .08em; color: {TEXT}; }}
 .os-brand .divider {{ width: 1px; height: 30px; background: {BORDER}; flex: none; }}
 .os-brand .tag {{ min-width: 0; }}
-.os-brand .name {{ font-size: 14px; font-weight: 600; color: {TEXT}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
-.os-brand .status {{ display: flex; align-items: center; gap: 6px; font-size: 12px; color: #16A34A; font-weight: 500; }}
+.os-brand .name {{ font-size: 14px; color: {TEXT}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+@media (max-width: 1440px) {{ .os-brand .name {{ font-size: 13px; line-height: 1.2; white-space: normal; }} .os-brand .word {{ letter-spacing: .06em; }} }}
+.os-brand .status {{ display: flex; align-items: center; gap: 6px; font-size: 12px; color: #16A34A; font-weight: 500; white-space: nowrap; }}
 .os-brand .live {{ width: 7px; height: 7px; border-radius: 50%; background: #16A34A; box-shadow: 0 0 0 3px rgba(22,163,74,.18); }}
 .os-icon {{ flex: none; vertical-align: -3px; }}
-.os-right {{ display: flex; justify-content: flex-end; align-items: center; gap: 14px; }}
-.os-dark-pill {{ display: inline-flex; align-items: center; gap: 8px; background: {TEXT}; color: #F8FAFC;
-  border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; white-space: nowrap;
-  max-width: 100%; overflow: hidden; text-overflow: ellipsis; }}
-.os-datetime {{ color: {TEXT_2}; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }}
-.os-datetime span {{ display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }}
-.st-key-os_header .stDownloadButton button {{ border-radius: 999px; border: 1px solid {ACCENT}; background: transparent;
-  color: {ACCENT}; font-weight: 600; padding: 4px 14px; min-height: 36px; white-space: nowrap; }}
-.st-key-os_header .stDownloadButton button:hover {{ background: {ACCENT_TINT}; }}
-.st-key-os_header .stDownloadButton {{ display: flex; justify-content: flex-end; }}
-/* header columns size to their content; the brand column takes the rest so nothing is cut */
-.st-key-os_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]) > [data-testid="stColumn"]
-{{ flex: 0 0 auto !important; width: auto !important; min-width: 0; }}
-.st-key-os_header [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]) > [data-testid="stColumn"]:first-child
-{{ flex: 1 1 0 !important; }}
 
-/* ---- nav pills ---- */
-.st-key-os_nav {{ border-top: 1px solid rgba(15,23,42,.06); padding-top: 8px; margin-top: 2px; }}
+/* scenario pill + Export report: one shared shape (40px, 0 18px, 999px, 14px/600, 18px icon) */
+.os-scenario-pill, .st-key-os_header .stDownloadButton button {{ box-sizing: border-box; height: 40px; min-height: 40px;
+  min-width: 220px; padding: 0 18px; border-radius: 999px; font-size: 14px; font-weight: 600; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap;
+  transition: transform .2s ease, box-shadow .2s ease; }}
+.os-scenario-pill {{ max-width: 320px; background: #FFF4E0; border: 1px solid #F59E0B; color: #B45309; cursor: default; }}
+.os-scenario-pill .txt {{ display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }}
+.os-scenario-pill .os-icon {{ vertical-align: 0; }}
+.os-scenario-pill:hover {{ transform: translateY(-2px); box-shadow: 0 6px 16px rgba(245,158,11,.22); }}
+.st-key-os_header .stDownloadButton button, .st-key-os_header .stDownloadButton button:focus,
+.st-key-os_header .stDownloadButton button:active {{ background: #FFFFFF; border: 1px solid {ACCENT}; color: {ACCENT}; box-shadow: none; }}
+.st-key-os_header .stDownloadButton button p {{ font-size: 14px; font-weight: 600; line-height: 1; color: inherit; }}
+.st-key-os_header .stDownloadButton button [data-testid="stIconMaterial"] {{ font-size: 18px; color: inherit; }}
+.st-key-os_header .stDownloadButton button > div {{ gap: 8px; }}
+.st-key-os_header .stDownloadButton button:hover {{ background: #FFFFFF; color: {ACCENT}; border-color: {ACCENT};
+  transform: translateY(-2px); box-shadow: 0 6px 16px rgba(37,99,235,.18); }}
+.os-datetime {{ display: flex; align-items: center; gap: 12px; height: 40px; margin-left: 4px; color: {TEXT_2};
+  font-size: 13px; font-weight: 500; }}
+.os-datetime span {{ display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }}
+
+/* ---- nav pills: centred row, only the active page is highlighted ---- */
+.st-key-os_nav {{ border-top: 1px solid rgba(15,23,42,.06); padding-top: 8px; margin-top: 2px;
+  justify-content: center !important; gap: 8px !important; }}
 .st-key-os_nav [data-testid="stPageLink"] a {{ border-radius: 999px; padding: 6px 14px; color: {TEXT_2};
-  transition: background .2s ease, color .2s ease; }}
+  background: transparent; transition: background .2s ease, color .2s ease; }}
 .st-key-os_nav [data-testid="stPageLink"] a:hover {{ background: rgba(15,23,42,.05); color: {TEXT}; }}
-.st-key-os_nav [data-testid="stPageLink"] a p {{ font-weight: 600; font-size: 14px; color: inherit; }}
+.st-key-os_nav [data-testid="stPageLink"] a:focus:not(:hover) {{ background: transparent; }}
+.st-key-os_nav [data-testid="stPageLink"] a:focus-visible {{ outline: 2px solid rgba(37,99,235,.45); outline-offset: 2px; }}
+.st-key-os_nav [data-testid="stPageLink"] a p, .st-key-os_nav [data-testid="stPageLink"] a span {{ font-weight: 500;
+  font-size: 14px; color: inherit; background: transparent; }}
 .st-key-os_nav [data-testid="stPageLink"] a [data-testid="stIconMaterial"] {{ color: inherit; }}
-.st-key-nav_active [data-testid="stPageLink"] a {{ background: {ACCENT_TINT}; color: {ACCENT}; }}
-.st-key-nav_active [data-testid="stPageLink"] a:hover {{ background: {ACCENT_TINT}; color: {ACCENT}; }}
+.st-key-nav_active [data-testid="stPageLink"] a, .st-key-nav_active [data-testid="stPageLink"] a:hover,
+.st-key-nav_active [data-testid="stPageLink"] a:focus:not(:hover) {{ background: {ACCENT_TINT}; color: {ACCENT}; }}
+.st-key-nav_active [data-testid="stPageLink"] a p, .st-key-nav_active [data-testid="stPageLink"] a span {{ font-weight: 600; }}
+
+/* ---- alert ticker (directly under the header) ---- */
+@keyframes os-marquee {{ from {{ transform: translateX(0); }} to {{ transform: translateX(-100%); }} }}
+@keyframes os-pulse {{ from {{ transform: scale(1); opacity: .55; }} to {{ transform: scale(2.8); opacity: 0; }} }}
+.os-ticker {{ display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 16px; margin: 0 0 2px;
+  border-radius: 12px; border: 1px solid; font-size: 13px; font-weight: 500; overflow: hidden; }}
+.os-ticker.critical {{ background: {tint("#DC2626", .08)}; border-color: {tint("#DC2626", .30)}; color: #B91C1C; }}
+.os-ticker.warning {{ background: #FFF4E0; border-color: {tint("#F59E0B", .45)}; color: #B45309; }}
+.os-ticker.ok {{ background: {tint("#16A34A", .07)}; border-color: {tint("#16A34A", .28)}; color: #15803D; }}
+.os-ticker .lead {{ display: inline-flex; align-items: center; gap: 8px; flex: none; padding-right: 12px;
+  border-right: 1px solid rgba(15,23,42,.10); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }}
+.os-ticker .pulse {{ position: relative; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }}
+.os-ticker .pulse::after {{ content: ""; position: absolute; inset: 0; border-radius: 50%; background: currentColor;
+  animation: os-pulse 1.6s ease-out infinite; }}
+.os-ticker .msg {{ flex: 1; min-width: 0; overflow: hidden; white-space: nowrap;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent); }}
+.os-ticker .track {{ display: inline-block; padding-left: 100%; animation: os-marquee 36s linear -9s infinite; }}
+.os-ticker:hover .track {{ animation-play-state: paused; }}
+@media (prefers-reduced-motion: reduce) {{
+  .os-ticker .track {{ display: block; padding-left: 0; transform: none !important; overflow: hidden; text-overflow: ellipsis; }}
+  .os-ticker .msg {{ -webkit-mask-image: none; mask-image: none; }}
+  .os-ticker .pulse::after {{ display: none; }}
+}}
 
 /* ---- glass controls row ---- */
 .st-key-os_controls {{ background: {GLASS_BG}; -webkit-backdrop-filter: blur(16px) saturate(160%);
