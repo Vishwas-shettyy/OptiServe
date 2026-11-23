@@ -74,24 +74,39 @@ The agent only makes outbound calls, so it needs no inbound rule.
 
 ## 3. Launch template (t3.micro + user-data)
 
-The user-data installs the demo app (port 80; it serves `/metrics` with `requests_per_min`) and the OptiServe agent. The agent reads its instance ID through IMDSv2. The template turns on **instance metadata tags**, so the agent can also read its Auto Scaling group name.
+The user-data runs once when each instance boots, including every instance the Auto Scaling group adds later, so a server added by an approved **scale up** joins OptiServe on its own:
 
-Save this as `user-data.sh`. Replace the two values in the first lines, or render the file with `envsubst`:
+1. **Demo app** ([demo_app/install.sh](demo_app/install.sh)): a systemd service on port 80. `GET /work?ms=50` burns real CPU on every core; `GET /metrics` returns `requests_per_min`.
+2. **OptiServe agent** ([agent/install.sh](../agent/install.sh)): reports to `BACKEND_URL` every 10 s with the token, and reads the demo app's counter for requests per minute. Through IMDSv2 it links itself to its EC2 instance id. The template turns on **instance metadata tags**, so the agent can also read its Auto Scaling group name.
+
+Save this as `user-data.sh`. Keep the two placeholders: `envsubst` below fills them in.
 
 ```bash
 #!/bin/bash
-set -euxo pipefail
+# OptiServe demo instance: demo app on :80 + OptiServe agent. Log: /var/log/optiserve-user-data.log
+set -euo pipefail
+exec > >(tee -a /var/log/optiserve-user-data.log) 2>&1
 BACKEND_URL="${BACKEND_URL}"
 AGENT_TOKEN="${AGENT_TOKEN}"
-dnf install -y git python3
-git clone --depth 1 --branch v2 https://github.com/Vishwas-shettyy/OptiServe.git /opt/optiserve-src
-# Demo app: a tiny real web app that counts requests (installed by its own script)
-if [ -x /opt/optiserve-src/demo/demo_app/install.sh ]; then
-  bash /opt/optiserve-src/demo/demo_app/install.sh
-fi
-# Agent: reports to the backend every 10 s; sends requests/min from the demo app's counter
-bash /opt/optiserve-src/agent/install.sh "$BACKEND_URL" "$AGENT_TOKEN" http://127.0.0.1/metrics
+SRC=/opt/optiserve-src
+
+dnf install -y -q git
+for attempt in 1 2 3 4 5; do
+  rm -rf "$SRC"
+  git clone --depth 1 --branch v2 https://github.com/Vishwas-shettyy/OptiServe.git "$SRC" && break
+  echo "git clone failed (attempt $attempt), retrying in 10 s"; sleep 10
+done
+
+# 1. Demo app on port 80 (systemd service optiserve-demo-app)
+bash "$SRC/demo/demo_app/install.sh" 80
+
+# 2. Agent: every 10 s to the backend, with requests/min from the demo app's counter
+bash "$SRC/agent/install.sh" "$BACKEND_URL" "$AGENT_TOKEN" http://127.0.0.1/metrics
+
+echo "OptiServe demo instance ready: $(curl -fsS http://127.0.0.1/metrics)"
 ```
+
+Check it on any instance with `sudo tail -n 30 /var/log/optiserve-user-data.log`, `systemctl status optiserve-demo-app optiserve-agent`, or `curl http://<public-ip>/metrics`. Within about 20 seconds of the agent starting, the instance shows up in OptiServe's live fleet.
 
 ```bash
 envsubst '$BACKEND_URL $AGENT_TOKEN' < user-data.sh > user-data.rendered.sh
@@ -151,7 +166,7 @@ aws ec2 run-instances --image-id $AMI --instance-type t3.micro --security-group-
   --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=forgotten-test-box},{Key=optiserve:managed,Value=true}]'
 ```
 
-Leave it idle. With `LIVE_MODE=true`, OptiServe flags it after about 10 quiet minutes.
+Leave it idle: it gets no user-data, so nothing runs on it. With `LIVE_MODE=true`, OptiServe flags it after about 10 quiet minutes.
 
 ---
 
@@ -182,7 +197,21 @@ Confirm the subscription email. The alarm fires when the month's estimated bill 
 
 ---
 
-## 9. Cleanup (everything)
+## 9. Make load
+
+From your laptop (Python 3.9+, `pip install httpx`), point [loadgen.py](loadgen.py) at the load balancer, or at the instance's public IP if you skipped it:
+
+```bash
+python demo/loadgen.py --url http://<alb-dns-name> --rps 30 --minutes 8
+```
+
+**Sizing:** each request burns `--work-ms` (default 50) of CPU, so one 2-vCPU t3.micro is full at about 40 requests/second. `--rps 30` puts a single instance at about 75% busy. That is enough for OptiServe to forecast a storm and suggest adding a server. After the second instance joins, the same load is about 40% per server. Use `--rps 60` for a harder spike: latency climbs as requests queue, and that is real too.
+
+> t3 instances are burstable but launch in *unlimited* mode by default, so CPU is not throttled under load. A few minutes of load costs a few cents at most.
+
+---
+
+## 10. Cleanup (everything)
 
 ```bash
 # Auto Scaling group and its instances
