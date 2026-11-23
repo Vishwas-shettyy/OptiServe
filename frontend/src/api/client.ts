@@ -8,6 +8,7 @@ import type {
   AwsConnectResponse,
   AwsTestResponse,
   Connection,
+  FleetGroup,
   Health,
   LoginBody,
   Ok,
@@ -16,6 +17,7 @@ import type {
   Stats,
   SyncResult,
   User,
+  Weather,
 } from "./types";
 
 /** An HTTP error with the backend's plain-words message. */
@@ -106,4 +108,6 @@ export const api = {
 
   actions: (limit?: number) => request<Action[]>("GET", `/api/actions${query({ limit })}`),
   stats: () => request<Stats>("GET", "/api/stats"),
+  groups: () => request<FleetGroup[]>("GET", "/api/groups"),
+  weather: () => request<Weather>("GET", "/api/forecast/weather"),
 };

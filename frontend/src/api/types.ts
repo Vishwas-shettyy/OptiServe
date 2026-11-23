@@ -165,3 +165,52 @@ export interface Stats {
   dry_run: boolean;
   as_of: string;
 }
+
+export type FleetStatus = "busy" | "normal" | "idle" | "unhealthy" | "stopped";
+
+/** One live-fleet tile. */
+export interface FleetServer {
+  id: number;
+  name: string;
+  provider: ConnectionKind;
+  instance_type: string | null;
+  state: "running" | "stopped" | "unknown";
+  status: FleetStatus;
+  cpu_pct: number | null;
+  mem_pct: number | null;
+  /** null when the price is not known (or the server is stopped). */
+  monthly_cost_inr: number | null;
+  reason: string;
+  last_seen_at: string | null;
+}
+
+export interface FleetGroup {
+  id: number;
+  name: string;
+  provider: ConnectionKind;
+  managed: boolean;
+  min_size: number;
+  max_size: number;
+  desired: number;
+  servers: FleetServer[];
+}
+
+export type WeatherKind = "sun" | "cloud" | "storm";
+
+export interface WeatherSlot {
+  start: string;
+  kind: WeatherKind;
+  /** Expected share of the running servers' capacity (0..1+). */
+  expected_util: number;
+  high_util: number;
+}
+
+export interface Weather {
+  horizon: "60 min" | "24 h";
+  live_mode: boolean;
+  status: "ok" | "learning" | "no_data";
+  message: string;
+  capacity: number;
+  slots: WeatherSlot[];
+  as_of: string;
+}

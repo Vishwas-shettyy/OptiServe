@@ -66,6 +66,17 @@
   }
 }
 
+/* Live fleet: a tile "breathes" — faster and brighter the busier it is. Colour and speed come from CSS variables. */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgb(var(--tile-rgb) / 0.0); }
+  50% { transform: scale(1.035); box-shadow: 0 0 0 6px rgb(var(--tile-rgb) / 0.16); }
+}
+@layer components {
+  .breathe {
+    animation: breathe var(--breathe-s, 4s) ease-in-out infinite;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

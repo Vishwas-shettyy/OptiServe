@@ -87,7 +87,7 @@ describe("pages and layout", () => {
     stubFetch({ ...signedIn, "GET /api/stats": { body: stats } });
     renderApp("/");
     expect(await screen.findByRole("heading", { name: "Your servers are 23% busy. You can save ₹4,200/month." })).toBeTruthy();
-    await waitFor(() => expect(screen.getByText("No suggestions yet")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Nothing to change right now")).toBeTruthy());
   });
 
   it("a 401 from any page signs the user out", async () => {

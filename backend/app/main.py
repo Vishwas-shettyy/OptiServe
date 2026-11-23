@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app import auth
-from app.api import actions, agent_tokens, connections, ingest, recommendations, stats
+from app.api import actions, agent_tokens, connections, forecast, groups, ingest, recommendations, stats
 from app.config import get_settings
 from app.db import init_db
 from app.jobs.scheduler import build_scheduler
@@ -62,6 +62,8 @@ def create_app() -> FastAPI:
     app.include_router(recommendations.router)
     app.include_router(actions.router)
     app.include_router(stats.router)
+    app.include_router(groups.router)
+    app.include_router(forecast.router)
     return app
 
 

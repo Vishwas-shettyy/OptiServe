@@ -14,6 +14,8 @@ export const keys = {
   recommendations: (statuses: RecommendationStatus[] | "all" | undefined) => ["recommendations", statuses ?? "open"] as const,
   actions: ["actions"] as const,
   stats: ["stats"] as const,
+  groups: ["groups"] as const,
+  weather: ["weather"] as const,
 };
 
 interface PollOptions {
@@ -136,8 +138,18 @@ export function useReject() {
   return useActOnRecommendation(api.reject);
 }
 
-export function useActions({ poll = POLL_SLOW }: PollOptions = {}) {
-  return useQuery({ queryKey: keys.actions, queryFn: () => api.actions(), refetchInterval: poll });
+export function useActions({ poll = POLL_SLOW, limit }: PollOptions & { limit?: number } = {}) {
+  return useQuery({ queryKey: [...keys.actions, limit ?? "all"], queryFn: () => api.actions(limit), refetchInterval: poll });
+}
+
+/** The live fleet: every group with a tile per server. */
+export function useGroups({ poll = POLL_SLOW }: PollOptions = {}) {
+  return useQuery({ queryKey: keys.groups, queryFn: api.groups, refetchInterval: poll });
+}
+
+/** Capacity weather for the next 24 h (60 min in live mode). */
+export function useWeather({ poll = POLL_SLOW }: PollOptions = {}) {
+  return useQuery({ queryKey: keys.weather, queryFn: api.weather, refetchInterval: poll });
 }
 
 export function useStats({ poll = POLL_SLOW }: PollOptions = {}) {
