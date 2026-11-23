@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app import auth
+from app.api import agent_tokens, ingest
 from app.config import get_settings
 from app.db import init_db
 
@@ -49,6 +50,8 @@ def create_app() -> FastAPI:
         return HealthResponse(status="ok", version=VERSION, live_mode=current.live_mode, dry_run=current.dry_run)
 
     app.include_router(auth.router)
+    app.include_router(agent_tokens.router)
+    app.include_router(ingest.router)
     return app
 
 

@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     dry_run: bool = True
     usd_inr: float = 83.0
     frontend_origin: str = "http://localhost:5173"
+    ingest_rate_limit_per_min: int = 30
 
     @property
     def cookie_secure(self) -> bool:
