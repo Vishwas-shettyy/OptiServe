@@ -132,3 +132,5 @@ class AgentToken(SQLModel, table=True):
     label: str
     created_at: datetime = Field(default_factory=utcnow)
     revoked: bool = False
+    last_used_at: Optional[datetime] = None  # last accepted ingest (onboarding waits for this)
+    last_server_id: Optional[int] = None  # the server that last reported with this token

@@ -239,6 +239,14 @@ def list_asgs(session: boto3.Session) -> list[AsgInfo]:
     return out
 
 
+def discover(session: boto3.Session) -> tuple[list[InstanceInfo], list[AsgInfo]]:
+    """List instances and Auto Scaling groups; raise AwsError with a plain message if AWS refuses."""
+    try:
+        return list_instances(session), list_asgs(session)
+    except (ClientError, BotoCoreError) as exc:
+        raise AwsError(friendly_error(exc)) from exc
+
+
 def target_group_dimensions(session: boto3.Session, arns: list[str]) -> dict[str, tuple[str, str]]:
     """Map target-group ARN → (TargetGroup, LoadBalancer) CloudWatch dimension values; skip unattached ones."""
     if not arns:

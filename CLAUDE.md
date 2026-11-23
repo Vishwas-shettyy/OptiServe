@@ -79,7 +79,7 @@ optiserve/
 | `Forecast` | id, group_id, created_at, horizon (`short`/`plan`), points_json (ts, expected, low, high), method |
 | `Recommendation` | id, group_id, server_id (nullable), kind (`scale_up`/`scale_down`/`stop_idle`/`hold`), from_count, to_count, reason, savings_month_inr, confidence (0–1), status (`pending`/`approved`/`rejected`/`blocked`/`executing`/`done`/`failed`/`expired`), blocked_reason, created_at, expires_at |
 | `ActionLog` | id, recommendation_id, approved_by, approved_at, executed_at, finished_at, result (`done`/`failed`/`dry_run`), details_json, realized_savings_inr |
-| `AgentToken` | id, token_hash, label, created_at, revoked |
+| `AgentToken` | id, token_hash, label, created_at, revoked, last_used_at, last_server_id (set on each accepted ingest; onboarding waits for it) |
 
 Retention: raw `MetricPoint` 14 days at full resolution, then downsample to 5-minute averages (job in §6).
 

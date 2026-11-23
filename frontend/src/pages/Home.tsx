@@ -1,6 +1,6 @@
 import { POLL_FAST, useRecommendations, useStats } from "../api/hooks";
 import type { Recommendation, Stats } from "../api/types";
-import { ButtonLink } from "../components/Button";
+import { Navigate } from "react-router-dom";
 import { Card } from "../components/Card";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
@@ -9,7 +9,7 @@ import { Skeleton, SkeletonCard } from "../components/Skeleton";
 import { StatNumber } from "../components/StatNumber";
 import { UpdatedAgo } from "../components/UpdatedAgo";
 import { formatInr, formatPct } from "../lib/format";
-import { ConnectIcon, GaugeIcon } from "../lib/icons";
+import { GaugeIcon } from "../lib/icons";
 
 /** One sentence a first-time visitor understands in 5 seconds. */
 export function headline(stats: Stats): string {
@@ -17,21 +17,6 @@ export function headline(stats: Stats): string {
   const busy = `Your servers are ${formatPct(stats.avg_busy_pct)} busy.`;
   if (stats.potential_savings_inr > 0) return `${busy} You can save ${formatInr(stats.potential_savings_inr)}/month.`;
   return `${busy} Nothing to change right now.`;
-}
-
-function NoServers() {
-  return (
-    <Card>
-      <EmptyState
-        icon={ConnectIcon}
-        title="Connect your first server"
-        action={<ButtonLink to="/connect" size="lg">Connect a server</ButtonLink>}
-      >
-        OptiServe only shows real numbers from your own servers. Install the small OptiServe agent on a server, or
-        connect your AWS account, and this page fills in within a minute.
-      </EmptyState>
-    </Card>
-  );
 }
 
 function FeedItem({ rec }: { rec: Recommendation }) {
@@ -96,7 +81,8 @@ export function Home() {
       </Card>
     );
   }
-  if (stats.data.servers === 0) return <NoServers />;
+  // No servers yet: onboarding is the only useful next step.
+  if (stats.data.servers === 0) return <Navigate to="/connect" replace />;
 
   const s = stats.data;
   return (

@@ -52,6 +52,7 @@ def test_token_crud_requires_admin_and_stores_hash(client: TestClient) -> None:
     assert client.get("/api/agent-tokens").status_code == 401
     created = _new_token(client)
     assert created["token"].startswith("osa_") and created["revoked"] is False
+    assert created["last_used_at"] is None and created["server_name"] is None
     listed = client.get("/api/agent-tokens").json()
     assert [t["id"] for t in listed] == [created["id"]] and "token" not in listed[0]
     with Session(get_engine()) as s:
@@ -75,6 +76,8 @@ def test_ingest_happy_path(client: TestClient) -> None:
         assert group is not None and group.name == "Ungrouped"
         assert len(s.exec(select(MetricPoint).where(MetricPoint.server_id == server.id)).all()) == 3
         assert s.exec(select(Connection).where(Connection.kind == "agent")).one().status == "ok"
+    listed = client.get("/api/agent-tokens").json()[0]
+    assert listed["last_used_at"] is not None and listed["server_name"] == "host-a"
 
 
 def test_ingest_bad_token(client: TestClient) -> None:
@@ -133,3 +136,22 @@ def test_ingest_upserts_server(client: TestClient) -> None:
         assert renamed is not None and renamed.name == "new-name" and renamed.instance_type == "t3.micro"
         aws = s.get(Server, linked["server_id"])
         assert aws is not None and aws.provider == "aws" and aws.name == "web-1" and aws.group_id == asg_id
+
+
+def test_init_db_adds_missing_token_columns(tmp_path: Any) -> None:
+    """A database made before last_used_at existed gets the new nullable columns on startup."""
+    from sqlalchemy import create_engine, inspect, text
+
+    from app.db import add_missing_columns
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'old.db'}")
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TABLE agenttoken (id INTEGER PRIMARY KEY, token_hash VARCHAR NOT NULL, "
+                "label VARCHAR NOT NULL, created_at DATETIME NOT NULL, revoked BOOLEAN NOT NULL)"
+            )
+        )
+    add_missing_columns(engine)
+    columns = {c["name"] for c in inspect(engine).get_columns("agenttoken")}
+    assert {"last_used_at", "last_server_id"} <= columns

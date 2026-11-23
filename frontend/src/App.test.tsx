@@ -54,8 +54,8 @@ describe("pages and layout", () => {
   it("Home with no servers tells you how to connect, and the top bar shows the live-mode badge", async () => {
     stubFetch(signedIn);
     renderApp("/");
-    expect(await screen.findByText("Connect your first server")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Connect a server" }).getAttribute("href")).toBe("/connect");
+    expect(await screen.findByRole("heading", { name: "Connect your first server" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Install the agent/ })).toBeTruthy();
     expect(await screen.findByText("Live mode")).toBeTruthy();
     for (const name of ["Home", "Servers", "Activity", "Settings"]) {
       expect(screen.getAllByRole("link", { name }).length).toBeGreaterThan(0);
@@ -66,7 +66,7 @@ describe("pages and layout", () => {
     ["/servers", "No servers yet"],
     ["/servers/7", "No details for this server yet"],
     ["/activity", "Nothing has changed yet"],
-    ["/connect", "Install the agent"],
+    ["/connect", "Connect your first server"],
     ["/nowhere", "This page doesn't exist"],
   ])("%s shows a clean empty state", async (path, text) => {
     stubFetch(signedIn);

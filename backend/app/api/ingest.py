@@ -7,7 +7,7 @@ from sqlmodel import Session
 from app.config import get_settings
 from app.connectors.agent import IngestRequest, IngestResponse, RateLimiter, find_active_token, ingest
 from app.db import get_session
-from app.models import AgentToken
+from app.models import AgentToken, utcnow
 
 router = APIRouter(prefix="/api", tags=["ingest"])
 _bearer = HTTPBearer(auto_error=False)
@@ -49,8 +49,13 @@ def require_agent_token(
 @router.post("/ingest", response_model=IngestResponse)
 def post_ingest(
     body: IngestRequest,
-    _: AgentToken = Depends(require_agent_token),
+    token: AgentToken = Depends(require_agent_token),
     session: Session = Depends(get_session),
 ) -> IngestResponse:
-    """Upsert the reporting server and store its samples."""
-    return ingest(session, body)
+    """Upsert the reporting server, store its samples and note which server the token last reported from."""
+    result = ingest(session, body)
+    token.last_used_at = utcnow()
+    token.last_server_id = result.server_id
+    session.add(token)
+    session.commit()
+    return result

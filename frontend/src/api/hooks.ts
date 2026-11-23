@@ -87,6 +87,11 @@ export function useConnections({ poll = POLL_SLOW }: PollOptions = {}) {
   return useQuery({ queryKey: keys.connections, queryFn: api.connections, refetchInterval: poll });
 }
 
+/** Check AWS credentials and list what they can see, without saving anything. */
+export function useTestAws() {
+  return useMutation<Awaited<ReturnType<typeof api.testAws>>, ApiError, AwsConnectBody>({ mutationFn: api.testAws });
+}
+
 export function useConnectAws() {
   const qc = useQueryClient();
   return useMutation<Awaited<ReturnType<typeof api.connectAws>>, ApiError, AwsConnectBody>({

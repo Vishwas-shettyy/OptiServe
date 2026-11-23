@@ -25,6 +25,10 @@ export interface AgentToken {
   label: string;
   created_at: string;
   revoked: boolean;
+  /** When an agent using this token last sent numbers; null until the first one arrives. */
+  last_used_at: string | null;
+  /** The server that last reported with this token. */
+  server_name: string | null;
 }
 
 /** A new token: the secret is shown exactly once. */
@@ -59,6 +63,31 @@ export interface SyncResult {
   period_s: number;
   backfill: boolean;
   impaired: string[];
+}
+
+export interface FoundInstance {
+  instance_id: string;
+  name: string;
+  state: string;
+  instance_type: string;
+  managed: boolean;
+  group: string | null;
+}
+
+export interface FoundGroup {
+  name: string;
+  min_size: number;
+  max_size: number;
+  desired: number;
+  managed: boolean;
+}
+
+/** What a connection test found. Nothing is saved by a test. */
+export interface AwsTestResponse {
+  account_id: string;
+  region: string;
+  instances: FoundInstance[];
+  groups: FoundGroup[];
 }
 
 export interface AwsConnectResponse {

@@ -51,6 +51,36 @@ class AwsConnectResponse(BaseModel):
     sync: Optional[aws.SyncResult]
 
 
+class FoundInstance(BaseModel):
+    """An EC2 instance found by a connection test."""
+
+    instance_id: str
+    name: str
+    state: str
+    instance_type: str
+    managed: bool
+    group: Optional[str]
+
+
+class FoundGroup(BaseModel):
+    """An Auto Scaling group found by a connection test."""
+
+    name: str
+    min_size: int
+    max_size: int
+    desired: int
+    managed: bool
+
+
+class AwsTestResponse(BaseModel):
+    """What OptiServe can see with these credentials. Nothing is saved."""
+
+    account_id: str
+    region: str
+    instances: list[FoundInstance]
+    groups: list[FoundGroup]
+
+
 def _out(conn: Connection) -> ConnectionOut:
     """Convert a table row to the response model."""
     assert conn.id is not None
@@ -62,6 +92,36 @@ def _out(conn: Connection) -> ConnectionOut:
         status=conn.status,
         last_sync_at=conn.last_sync_at,
         error_message=conn.error_message,
+    )
+
+
+@router.post("/aws/test", response_model=AwsTestResponse)
+def test_aws(body: AwsConnectRequest) -> AwsTestResponse:
+    """Check the credentials and list instances and groups, without saving anything or keeping the keys."""
+    session = aws.make_session(body.region, body.access_key_id, body.secret_access_key, body.session_token)
+    try:
+        identity = aws.validate_credentials(session)
+        instances, groups = aws.discover(session)
+    except aws.AwsError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+    return AwsTestResponse(
+        account_id=identity.account_id,
+        region=body.region,
+        instances=[
+            FoundInstance(
+                instance_id=i.instance_id,
+                name=i.name,
+                state=i.state,
+                instance_type=i.instance_type,
+                managed=i.managed,
+                group=i.asg_name,
+            )
+            for i in instances
+        ],
+        groups=[
+            FoundGroup(name=g.name, min_size=g.min_size, max_size=g.max_size, desired=g.desired, managed=g.managed)
+            for g in groups
+        ],
     )
 
 

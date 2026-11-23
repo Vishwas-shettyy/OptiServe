@@ -341,3 +341,41 @@ def test_connections_require_admin(client: TestClient) -> None:
     assert client.get("/api/connections").status_code == 401
     assert client.post("/api/connections/aws", json={"region": REGION}).status_code == 401
     assert client.post("/api/connections/1/sync").status_code == 401
+
+
+def test_test_connection_lists_without_saving(client: TestClient, mocked: None) -> None:
+    """The connection test returns what it found and saves nothing, keys included."""
+    import os
+
+    world = build_world(hours=1)
+    _login(client)
+    before = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    res = client.post(
+        "/api/connections/aws/test",
+        json={"region": REGION, "access_key_id": "AKIAIOSFODNN7EXAMPLE", "secret_access_key": SECRET},
+    )
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["account_id"] == "123456789012" and body["region"] == REGION
+    found = {i["instance_id"]: i for i in body["instances"]}
+    assert found[world.asg_instance]["group"] == "optiserve-demo"
+    assert found[world.lone_instance]["name"] == "forgotten-test-box" and found[world.lone_instance]["managed"]
+    assert [(g["name"], g["min_size"], g["max_size"], g["managed"]) for g in body["groups"]] == [
+        ("optiserve-demo", 1, 3, True)
+    ]
+    assert client.get("/api/connections").json() == []
+    assert os.environ.get("AWS_SECRET_ACCESS_KEY") == before != SECRET
+
+
+def test_test_connection_errors(client: TestClient, mocked: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Refused discovery gives 400 with a plain message; the route needs a session."""
+    assert client.post("/api/connections/aws/test", json={"region": REGION}).status_code == 401
+
+    def refuse(_: Any) -> Any:
+        """Simulate AWS denying DescribeInstances."""
+        raise aws.AwsError("OptiServe is not allowed to list your servers.")
+
+    monkeypatch.setattr(aws, "discover", refuse)
+    _login(client)
+    res = client.post("/api/connections/aws/test", json={"region": REGION})
+    assert res.status_code == 400 and "not allowed" in res.json()["detail"]

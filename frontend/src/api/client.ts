@@ -6,6 +6,7 @@ import type {
   ApproveResponse,
   AwsConnectBody,
   AwsConnectResponse,
+  AwsTestResponse,
   Connection,
   Health,
   LoginBody,
@@ -91,6 +92,7 @@ export const api = {
   revokeAgentToken: (id: number) => request<AgentToken>("DELETE", `/api/agent-tokens/${id}`),
 
   connections: () => request<Connection[]>("GET", "/api/connections"),
+  testAws: (body: AwsConnectBody) => request<AwsTestResponse>("POST", "/api/connections/aws/test", body),
   connectAws: (body: AwsConnectBody) => request<AwsConnectResponse>("POST", "/api/connections/aws", body),
   syncConnection: (id: number) => request<SyncResult>("POST", `/api/connections/${id}/sync`),
 
