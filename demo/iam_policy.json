@@ -1,0 +1,46 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "OptiServeRead",
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity",
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus",
+        "autoscaling:DescribeAutoScalingGroups",
+        "elasticloadbalancing:DescribeTargetGroups",
+        "cloudwatch:GetMetricData"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "OptiServeScaleManagedGroupsOnly",
+      "Effect": "Allow",
+      "Action": "autoscaling:SetDesiredCapacity",
+      "Resource": "arn:aws:autoscaling:*:*:autoScalingGroup:*:autoScalingGroupName/*",
+      "Condition": {
+        "StringEquals": { "aws:ResourceTag/optiserve:managed": "true" }
+      }
+    },
+    {
+      "Sid": "OptiServeStopStartManagedInstancesOnly",
+      "Effect": "Allow",
+      "Action": ["ec2:StopInstances", "ec2:StartInstances"],
+      "Resource": "arn:aws:ec2:*:*:instance/*",
+      "Condition": {
+        "StringEquals": { "aws:ResourceTag/optiserve:managed": "true" }
+      }
+    },
+    {
+      "Sid": "OptiServeNeverTerminates",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:TerminateInstances",
+        "autoscaling:TerminateInstanceInAutoScalingGroup",
+        "autoscaling:DeleteAutoScalingGroup"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
