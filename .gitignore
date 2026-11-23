@@ -20,3 +20,8 @@ htmlcov/
 dist/
 build/
 node_modules/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
