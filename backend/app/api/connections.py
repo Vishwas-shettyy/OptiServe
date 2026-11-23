@@ -5,13 +5,14 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, model_validator
-from sqlmodel import Session, select
+from sqlalchemy import delete
+from sqlmodel import Session, col, select
 
 from app.auth import require_admin
 from app.config import Settings, get_settings
 from app.connectors import aws
 from app.db import get_session
-from app.models import Connection
+from app.models import Connection, Group, MetricPoint, Recommendation, Server
 
 router = APIRouter(prefix="/api/connections", tags=["connections"], dependencies=[Depends(require_admin)])
 
@@ -178,3 +179,49 @@ def sync_now(
         return aws.sync_connection(db, conn, settings)
     except aws.AwsError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+
+
+class RemoveResult(BaseModel):
+    """What removing a connection took away."""
+
+    removed_connection_id: int
+    servers_removed: int
+
+
+@router.delete("/{connection_id}", response_model=RemoveResult)
+def remove_connection(connection_id: int, db: Session = Depends(get_session)) -> RemoveResult:
+    """Stop reading an AWS account: drop the connection and its servers' metrics; keep the Activity history."""
+    conn = db.get(Connection, connection_id)
+    if conn is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Connection not found.")
+    if conn.kind != "aws":
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "The agent connection can't be removed. Turn off its tokens instead."
+        )
+    others = db.exec(
+        select(Connection).where(Connection.kind == "aws", Connection.region == conn.region, Connection.id != conn.id)
+    ).first()
+    servers = [] if others else db.exec(
+        select(Server).where(Server.provider == "aws", Server.region == conn.region)
+    ).all()
+    ids = [s.id for s in servers if s.id is not None]
+    groups = {s.group_id for s in servers if s.group_id is not None}
+    if ids:
+        db.exec(delete(MetricPoint).where(col(MetricPoint.server_id).in_(ids)))  # type: ignore[call-overload]
+    for rec in db.exec(
+        select(Recommendation).where(col(Recommendation.group_id).in_(groups), col(Recommendation.status).in_(("pending", "blocked")))
+    ).all():
+        rec.status = "expired"
+        db.add(rec)
+    for s in servers:
+        db.delete(s)
+    db.flush()
+    for gid in groups:
+        still_used = db.exec(select(Server).where(Server.group_id == gid)).first()
+        referenced = db.exec(select(Recommendation).where(Recommendation.group_id == gid)).first()
+        group = db.get(Group, gid)
+        if group is not None and still_used is None and referenced is None:
+            db.delete(group)
+    db.delete(conn)
+    db.commit()
+    return RemoveResult(removed_connection_id=connection_id, servers_removed=len(ids))

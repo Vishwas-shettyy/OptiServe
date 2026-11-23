@@ -176,7 +176,7 @@ function Alert({ tone = "danger", children }: { tone?: "danger" | "warn" | "info
   );
 }
 
-function CopyBox({ text, label }: { text: string; label: string }) {
+export function CopyBox({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!copied) return;

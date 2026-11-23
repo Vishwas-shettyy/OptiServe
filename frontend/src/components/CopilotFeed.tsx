@@ -82,7 +82,7 @@ function Progress({ rec, action }: { rec: Recommendation; action: Action | undef
   );
 }
 
-function FeedCard({
+export function FeedCard({
   rec,
   action,
   onApproved,

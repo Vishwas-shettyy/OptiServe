@@ -11,6 +11,10 @@ const signedIn = {
   "GET /api/actions": { body: [] },
   "GET /api/connections": { body: [] },
   "GET /api/agent-tokens": { body: [] },
+  "GET /api/servers": { body: [] },
+  "GET /api/settings": {
+    body: { risk: 0.5, live_mode: true, dry_run: true, target_util_pct: 70, updated_at: null, updated_by: null },
+  },
 };
 
 describe("auth flow", () => {
@@ -79,7 +83,7 @@ describe("pages and layout", () => {
     renderApp("/settings");
     expect(await screen.findByText("Nothing connected")).toBeTruthy();
     expect(await screen.findByText("No agent tokens")).toBeTruthy();
-    expect(await screen.findByText("Dry run is on.")).toBeTruthy();
+    expect(await screen.findByText(/^Dry run is on\./)).toBeTruthy();
   });
 
   it("Home with servers leads with one plain headline", async () => {

@@ -1,6 +1,9 @@
 // Typed fetch client for every backend route used by the UI. Same-origin /api (Vite proxies it to the backend).
 import type {
   Action,
+  ActionChart,
+  AppSettings,
+  AppSettingsUpdate,
   AgentToken,
   AgentTokenCreated,
   ApproveResponse,
@@ -14,6 +17,9 @@ import type {
   Ok,
   Recommendation,
   RecommendationStatus,
+  RemoveResult,
+  ServerDetail,
+  ServerRow,
   Stats,
   SyncResult,
   User,
@@ -31,7 +37,7 @@ export class ApiError extends Error {
   }
 }
 
-type Method = "GET" | "POST" | "DELETE";
+type Method = "GET" | "POST" | "PUT" | "DELETE";
 
 function messageFrom(status: number, body: unknown): string {
   if (body && typeof body === "object" && "detail" in body) {
@@ -97,6 +103,15 @@ export const api = {
   testAws: (body: AwsConnectBody) => request<AwsTestResponse>("POST", "/api/connections/aws/test", body),
   connectAws: (body: AwsConnectBody) => request<AwsConnectResponse>("POST", "/api/connections/aws", body),
   syncConnection: (id: number) => request<SyncResult>("POST", `/api/connections/${id}/sync`),
+  removeConnection: (id: number) => request<RemoveResult>("DELETE", `/api/connections/${id}`),
+
+  servers: () => request<ServerRow[]>("GET", "/api/servers"),
+  server: (id: number) => request<ServerDetail>("GET", `/api/servers/${id}`),
+  setPrice: (id: number, hourlyUsd: number | null) =>
+    request<ServerRow>("PUT", `/api/servers/${id}/price`, { hourly_usd: hourlyUsd }),
+
+  settings: () => request<AppSettings>("GET", "/api/settings"),
+  updateSettings: (body: AppSettingsUpdate) => request<AppSettings>("PUT", "/api/settings", body),
 
   recommendations: (statuses?: RecommendationStatus[] | "all", limit?: number) =>
     request<Recommendation[]>(
@@ -107,6 +122,7 @@ export const api = {
   reject: (id: number) => request<Recommendation>("POST", `/api/recommendations/${id}/reject`),
 
   actions: (limit?: number) => request<Action[]>("GET", `/api/actions${query({ limit })}`),
+  actionChart: (id: number) => request<ActionChart>("GET", `/api/actions/${id}/chart`),
   stats: () => request<Stats>("GET", "/api/stats"),
   groups: () => request<FleetGroup[]>("GET", "/api/groups"),
   weather: () => request<Weather>("GET", "/api/forecast/weather"),

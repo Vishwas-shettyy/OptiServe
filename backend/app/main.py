@@ -6,11 +6,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlmodel import Session
 
 from app import auth
-from app.api import actions, agent_tokens, connections, forecast, groups, ingest, recommendations, stats
+from app.api import actions, agent_tokens, connections, forecast, groups, ingest, recommendations, servers, stats
+from app.api import settings as settings_api
 from app.config import get_settings
-from app.db import init_db
+from app.db import get_engine, init_db
 from app.jobs.scheduler import build_scheduler
 
 VERSION = "2.0.0"
@@ -29,6 +31,8 @@ class HealthResponse(BaseModel):
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     """Create tables and start the background jobs; stop them on shutdown."""
     init_db()
+    with Session(get_engine()) as db:
+        settings_api.apply_stored(db, get_settings())
     scheduler = build_scheduler(get_settings()) if get_settings().scheduler_enabled else None
     if scheduler is not None:
         scheduler.start()
@@ -64,6 +68,8 @@ def create_app() -> FastAPI:
     app.include_router(stats.router)
     app.include_router(groups.router)
     app.include_router(forecast.router)
+    app.include_router(servers.router)
+    app.include_router(settings_api.router)
     return app
 
 

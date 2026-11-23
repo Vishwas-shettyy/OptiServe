@@ -1,7 +1,7 @@
 // react-query hooks for every backend route. Home and Server detail poll every 5 s; other pages every 30 s.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "./client";
-import type { AwsConnectBody, LoginBody, RecommendationStatus, User } from "./types";
+import type { AppSettingsUpdate, AwsConnectBody, LoginBody, RecommendationStatus, User } from "./types";
 
 export const POLL_FAST = 5_000;
 export const POLL_SLOW = 30_000;
@@ -16,6 +16,10 @@ export const keys = {
   stats: ["stats"] as const,
   groups: ["groups"] as const,
   weather: ["weather"] as const,
+  servers: ["servers"] as const,
+  server: (id: number) => ["server", id] as const,
+  settings: ["settings"] as const,
+  actionChart: (id: number) => ["action-chart", id] as const,
 };
 
 interface PollOptions {
@@ -154,4 +158,55 @@ export function useWeather({ poll = POLL_SLOW }: PollOptions = {}) {
 
 export function useStats({ poll = POLL_SLOW }: PollOptions = {}) {
   return useQuery({ queryKey: keys.stats, queryFn: api.stats, refetchInterval: poll });
+}
+
+export function useServers({ poll = POLL_SLOW }: PollOptions = {}) {
+  return useQuery({ queryKey: keys.servers, queryFn: api.servers, refetchInterval: poll });
+}
+
+/** One server's detail page (polls every 5 s). */
+export function useServer(id: number, { poll = POLL_FAST }: PollOptions = {}) {
+  return useQuery({
+    queryKey: keys.server(id),
+    queryFn: () => api.server(id),
+    refetchInterval: poll,
+    enabled: Number.isInteger(id) && id > 0,
+  });
+}
+
+export function useSetPrice() {
+  const qc = useQueryClient();
+  return useMutation<Awaited<ReturnType<typeof api.setPrice>>, ApiError, { id: number; hourlyUsd: number | null }>({
+    mutationFn: ({ id, hourlyUsd }) => api.setPrice(id, hourlyUsd),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.servers });
+      void qc.invalidateQueries({ queryKey: keys.stats });
+      void qc.invalidateQueries({ queryKey: keys.groups });
+    },
+  });
+}
+
+export function useRemoveConnection() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (id: number) => api.removeConnection(id), onSuccess: () => qc.invalidateQueries() });
+}
+
+export function useAppSettings() {
+  return useQuery({ queryKey: keys.settings, queryFn: api.settings, refetchInterval: POLL_SLOW });
+}
+
+export function useUpdateSettings() {
+  const qc = useQueryClient();
+  return useMutation<Awaited<ReturnType<typeof api.updateSettings>>, ApiError, AppSettingsUpdate>({
+    mutationFn: api.updateSettings,
+    onSuccess: (data) => {
+      qc.setQueryData(keys.settings, data);
+      void qc.invalidateQueries();
+    },
+  });
+}
+
+/** Before/after load for one Activity entry (fetched once; it only changes for 30 min after the action). */
+export function useActionChart(id: number) {
+  return useQuery({ queryKey: keys.actionChart(id), queryFn: () => api.actionChart(id), staleTime: 60_000 });
 }

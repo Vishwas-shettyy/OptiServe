@@ -17,6 +17,9 @@ from app.models import Connection, utcnow
 
 log = logging.getLogger(__name__)
 
+# The running scheduler (set by build_scheduler) so a settings change can retime jobs.
+SCHEDULER: Optional[BackgroundScheduler] = None
+
 # Latest accuracy score, refreshed by score_accuracy and read by /api/stats.
 ACCURACY: dict[str, Any] = {"accuracy_pct": None, "wape": None, "points": 0, "updated_at": None}
 
@@ -113,4 +116,16 @@ def build_scheduler(settings: Settings) -> BackgroundScheduler:
             _safe(jobs[name], name), "interval", seconds=int(every.total_seconds()), id=name, name=name,
             max_instances=1, coalesce=True, replace_existing=True, **({"next_run_time": first} if first else {}),
         )
+    global SCHEDULER
+    SCHEDULER = scheduler
     return scheduler
+
+
+def retime(settings: Settings) -> bool:
+    """Apply job intervals after live mode changes; return True when a running scheduler was updated."""
+    if SCHEDULER is None or not SCHEDULER.running:
+        return False
+    for name, every in job_intervals(settings).items():
+        if SCHEDULER.get_job(name) is not None:
+            SCHEDULER.reschedule_job(name, trigger="interval", seconds=int(every.total_seconds()))
+    return True

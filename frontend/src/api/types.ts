@@ -214,3 +214,67 @@ export interface Weather {
   slots: WeatherSlot[];
   as_of: string;
 }
+
+/** A row on the Servers page (a fleet tile plus its group and price details). */
+export interface ServerRow extends FleetServer {
+  group_id: number | null;
+  group_name: string;
+  managed: boolean;
+  /** USD per hour in use; null when unknown. */
+  hourly_usd: number | null;
+  price_source: "override" | "table" | null;
+  table_hourly_usd: number | null;
+}
+
+/** One minute on the detail chart, in servers' worth of work (1 = one server fully busy). */
+export interface ChartPoint {
+  ts: string;
+  load: number | null;
+  server: number | null;
+  expected: number | null;
+  low: number | null;
+  high: number | null;
+}
+
+export interface SafetyCheck {
+  number: number;
+  rule: string;
+  status: "pass" | "adjusted" | "blocked";
+  message: string;
+}
+
+export interface ServerDetail {
+  server: ServerRow;
+  capacity: number;
+  target_util_pct: number;
+  chart: ChartPoint[];
+  sees: string[];
+  safety: SafetyCheck[];
+  recommendation: Recommendation | null;
+  as_of: string;
+}
+
+export interface AppSettings {
+  /** 0 = save more … 1 = stay safe. */
+  risk: number;
+  live_mode: boolean;
+  dry_run: boolean;
+  target_util_pct: number;
+  updated_at: string | null;
+  updated_by: string | null;
+}
+
+export type AppSettingsUpdate = Partial<Pick<AppSettings, "risk" | "live_mode" | "dry_run">>;
+
+export interface RemoveResult {
+  removed_connection_id: number;
+  servers_removed: number;
+}
+
+export interface ActionChart {
+  action_id: number;
+  changed_at: string | null;
+  before_servers: number | null;
+  after_servers: number | null;
+  points: { ts: string; load: number }[];
+}

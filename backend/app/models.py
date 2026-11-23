@@ -134,3 +134,12 @@ class AgentToken(SQLModel, table=True):
     revoked: bool = False
     last_used_at: Optional[datetime] = None  # last accepted ingest (onboarding waits for this)
     last_server_id: Optional[int] = None  # the server that last reported with this token
+
+
+class AppSetting(SQLModel, table=True):
+    """A setting changed from the UI (risk, live_mode, dry_run); overrides the .env value after restarts."""
+
+    key: str = Field(primary_key=True)
+    value: str
+    updated_at: datetime = Field(default_factory=utcnow)
+    updated_by: Optional[str] = None

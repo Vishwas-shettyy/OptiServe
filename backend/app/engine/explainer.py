@@ -73,3 +73,50 @@ def explain(
         return f"Load is too unpredictable right now to remove a server safely. Keeping {_servers(current)}."
     busy = _busy_now(forecast, current)
     return f"Your servers are {busy:.0f}% busy and have room for the next hour. No change needed."
+
+
+def what_we_see(
+    *,
+    status_reason: str,
+    mem_pct: Optional[float],
+    provider: str,
+    group_name: str,
+    capacity: int,
+    forecast: ForecastResult,
+    now: pd.Timestamp,
+    target_util: float,
+    params: EngineParams,
+    data_span: timedelta,
+    demand_now: Optional[float],
+) -> list[str]:
+    """Return 3–5 plain sentences describing what OptiServe sees for one server and its group."""
+    out = [status_reason]
+    if mem_pct is not None and np.isfinite(mem_pct):
+        out.append(f"Memory is {mem_pct:.0f}% full.")
+    elif provider == "aws":
+        out.append("AWS doesn't report memory. Install the agent on this server to see it.")
+    if demand_now is not None and capacity > 0:
+        out.append(
+            f"The group {group_name} is {demand_now / capacity * 100:.0f}% busy across its {_servers(capacity)} right now."
+        )
+    if forecast.ok and capacity > 0:
+        pts = forecast.points
+        i = int(pts["expected"].to_numpy(dtype=float).argmax())
+        peak = float(pts["expected"].iloc[i]) / capacity * 100.0
+        minutes = max(1, int((pd.Timestamp(pts["ts"].iloc[i]) - now).total_seconds() // 60))
+        aim = target_util * 100.0
+        when = "in the next few minutes" if minutes <= 2 else f"in about {minutes} minutes"
+        verdict = (
+            f"That's above the {aim:.0f}% OptiServe aims for, so it plans more room."
+            if peak > aim
+            else f"That stays under the {aim:.0f}% OptiServe aims for."
+        )
+        out.append(f"In the next hour it is expected to peak at {peak:.0f}% busy {when}. {verdict}")
+    elif not forecast.ok:
+        out.append(f"OptiServe is learning: {forecast.message[len('Learning: '):] if forecast.message.startswith('Learning: ') else forecast.message}.")
+    if data_span < params.min_data:
+        out.append(
+            f"OptiServe has {duration_words(data_span)} of numbers and waits for {duration_words(params.min_data)} "
+            "before suggesting changes."
+        )
+    return out

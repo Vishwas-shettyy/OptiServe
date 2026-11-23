@@ -80,6 +80,7 @@ optiserve/
 | `Recommendation` | id, group_id, server_id (nullable), kind (`scale_up`/`scale_down`/`stop_idle`/`hold`), from_count, to_count, reason, savings_month_inr, confidence (0–1), status (`pending`/`approved`/`rejected`/`blocked`/`executing`/`done`/`failed`/`expired`), blocked_reason, created_at, expires_at |
 | `ActionLog` | id, recommendation_id, approved_by, approved_at, executed_at, finished_at, result (`done`/`failed`/`dry_run`), details_json, realized_savings_inr |
 | `AgentToken` | id, token_hash, label, created_at, revoked, last_used_at, last_server_id (set on each accepted ingest; onboarding waits for it) |
+| `AppSetting` | key (`risk`/`live_mode`/`dry_run`), value, updated_at, updated_by. Changes made in Settings; they override `.env` and are applied at startup |
 
 Retention: raw `MetricPoint` 14 days at full resolution, then downsample to 5-minute averages (job in §6).
 
