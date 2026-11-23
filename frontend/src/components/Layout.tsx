@@ -115,6 +115,12 @@ export function Layout() {
   const health = useHealth();
   return (
     <div className="min-h-screen">
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+      >
+        Skip to content
+      </a>
       <header className="glass sticky top-0 z-40 border-x-0 border-t-0 border-b-line/70">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
           <NavLink to="/" aria-label="OptiServe home">
@@ -133,7 +139,7 @@ export function Layout() {
         </div>
         <NavItems className="flex gap-1 overflow-x-auto px-4 pb-2 md:hidden" />
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-6 outline-none sm:px-6 sm:py-8">
         <Outlet />
       </main>
     </div>

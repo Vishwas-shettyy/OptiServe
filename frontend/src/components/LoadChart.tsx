@@ -77,7 +77,7 @@ export function LoadChart({ points, capacity, now }: { points: ChartPoint[]; cap
               scale="time"
               domain={["dataMin", "dataMax"]}
               tickFormatter={(t: number) => formatClock(new Date(t).toISOString())}
-              tick={{ fontSize: 11, fill: "#64748b" }}
+              tick={{ fontSize: 11, fill: "#5b6a7e" }}
               tickLine={false}
               axisLine={false}
               minTickGap={40}
@@ -85,7 +85,7 @@ export function LoadChart({ points, capacity, now }: { points: ChartPoint[]; cap
             <YAxis
               domain={[0, Math.ceil(top)]}
               allowDecimals={false}
-              tick={{ fontSize: 11, fill: "#64748b" }}
+              tick={{ fontSize: 11, fill: "#5b6a7e" }}
               tickLine={false}
               axisLine={false}
               width={40}
@@ -105,11 +105,11 @@ export function LoadChart({ points, capacity, now }: { points: ChartPoint[]; cap
             />
             <ReferenceLine
               y={capacity}
-              stroke="#dc2626"
+              stroke="#b91c1c"
               strokeDasharray="6 4"
-              label={{ value: `Capacity: ${capacity} servers`, position: "insideTopLeft", fill: "#dc2626", fontSize: 11 }}
+              label={{ value: `Capacity: ${capacity} servers`, position: "insideTopLeft", fill: "#b91c1c", fontSize: 11 }}
             />
-            <ReferenceLine x={nowT} stroke="#94a3b8" label={{ value: "Now", position: "top", fill: "#64748b", fontSize: 11 }} />
+            <ReferenceLine x={nowT} stroke="#94a3b8" label={{ value: "Now", position: "top", fill: "#5b6a7e", fontSize: 11 }} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

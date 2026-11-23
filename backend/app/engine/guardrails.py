@@ -82,7 +82,11 @@ def rule_min_servers(p: Proposal, ctx: GuardContext) -> tuple[Proposal, str, str
 
 
 def rule_max_servers(p: Proposal, ctx: GuardContext) -> tuple[Proposal, str, str]:
-    """Rule 2: never go above the group maximum."""
+    """Rule 2: never go above the group maximum (agent groups have no maximum to respect)."""
+    if p.kind == "hold":
+        return p, "pass", "Nothing to change."
+    if ctx.group.provider != "aws":
+        return p, "pass", "Agent servers have no size limit in OptiServe."
     cap = int(ctx.group.max_size)
     if p.to_count <= cap:
         return p, "pass", f"Stays within the maximum of {cap} {_plural(cap)}."

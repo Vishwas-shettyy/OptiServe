@@ -260,7 +260,7 @@ function Switch({
         onClick={() => onChange(!checked)}
         className={cn(
           "relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors duration-150 disabled:opacity-60",
-          checked ? "bg-accent" : "bg-slate-300",
+          checked ? "bg-accent" : "bg-slate-500",
         )}
       >
         <span

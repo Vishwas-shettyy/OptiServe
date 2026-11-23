@@ -131,6 +131,20 @@ def test_max_servers_blocks_when_already_at_max() -> None:
     assert d.status == "blocked" and "maximum is 3" in d.blocked_reason
 
 
+def test_agent_group_has_no_maximum() -> None:
+    """Agent groups (created with size 0) are never blocked by rule 2; rule 9 makes them suggestion-only."""
+    agent = group(3, min_size=0, max_size=0, managed=False, provider="agent")
+    d = evaluate_group(agent, servers_frame([1, 2, 3]), rising_load(), NOW, NORMAL)
+    assert _rule(d, 2).status == "pass" and "maximum is 0" not in (d.blocked_reason or "")
+    assert d.kind == "scale_up" and _rule(d, 9).status == "blocked" and not d.executable
+
+
+def test_hold_passes_max_rule() -> None:
+    """A hold changes nothing, so rule 2 has nothing to block, even at size 0."""
+    d = evaluate_group(group(1, min_size=0, max_size=0), servers_frame([1]), server_metrics(1, pd.Timedelta(minutes=4), lambda ago: 20.0), NOW, NORMAL)
+    assert d.kind == "hold" and _rule(d, 2).status == "pass" and "maximum" not in (d.blocked_reason or "")
+
+
 def test_all_nine_rules_reported() -> None:
     """Every decision lists rules 1–9 in order."""
     d = evaluate_group(group(3), servers_frame([1, 2, 3]), idle_server(), NOW, NORMAL)

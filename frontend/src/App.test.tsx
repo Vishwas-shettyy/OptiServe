@@ -78,6 +78,14 @@ describe("pages and layout", () => {
     expect(await screen.findByText(text)).toBeTruthy();
   });
 
+  it("keyboard users can skip the top bar", async () => {
+    stubFetch(signedIn);
+    renderApp("/activity");
+    const skip = await screen.findByRole("link", { name: "Skip to content" });
+    expect(skip.getAttribute("href")).toBe("#main");
+    expect(document.getElementById("main")?.tagName).toBe("MAIN");
+  });
+
   it("Settings shows empty connections and tokens", async () => {
     stubFetch(signedIn);
     renderApp("/settings");

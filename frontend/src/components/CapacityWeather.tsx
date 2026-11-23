@@ -5,7 +5,7 @@ import { formatClock } from "../lib/format";
 import { CloudIcon, StormIcon, SunIcon, type LucideIcon } from "../lib/icons";
 
 const kinds: Record<WeatherKind, { icon: LucideIcon; word: string; className: string }> = {
-  sun: { icon: SunIcon, word: "quiet", className: "bg-amber-50 text-amber-500" },
+  sun: { icon: SunIcon, word: "quiet", className: "bg-amber-50 text-amber-600" },
   cloud: { icon: CloudIcon, word: "normal", className: "bg-slate-100 text-slate-500" },
   storm: { icon: StormIcon, word: "peak", className: "bg-red-50 text-red-600" },
 };

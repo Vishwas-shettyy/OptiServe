@@ -12,17 +12,17 @@
 
   --color-ink: #0f172a;
   --color-ink-soft: #334155;
-  --color-muted: #64748b;
+  --color-muted: #5b6a7e; /* AA (≥4.5:1) on white, canvas and slate-100 */
   --color-line: #e2e8f0;
   --color-canvas: #f5f7fb;
   --color-surface: #ffffff;
 
   --color-calm: #3b82f6;
-  --color-good: #059669;
+  --color-good: #047857;
   --color-good-soft: #ecfdf5;
-  --color-warn: #d97706;
+  --color-warn: #b45309;
   --color-warn-soft: #fffbeb;
-  --color-danger: #dc2626;
+  --color-danger: #b91c1c;
   --color-danger-soft: #fef2f2;
 
   --radius-card: 1.25rem;

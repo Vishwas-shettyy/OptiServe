@@ -2,11 +2,47 @@
 
 **Connect your servers in 2 minutes. OptiServe watches real usage, warns you before you run short, finds servers you're wasting money on, and fixes it with one click, only when you approve.**
 
-- Real data only: the OptiServe agent on any Linux server, or a read-only AWS connection (EC2, Auto Scaling, CloudWatch).
-- Copilot, not autopilot: every change waits for a person to click **Approve**, passes nine safety checks, and is logged.
-- Savings are counted only from real actions: servers removed × hours × price.
+- **Real data only.** Numbers come from the OptiServe agent on any Linux server, or from a read-only AWS connection (EC2, Auto Scaling, CloudWatch). With nothing connected, every screen says how to connect instead of showing sample numbers.
+- **Copilot, not autopilot.** Every change waits for a person to click **Approve**, passes nine safety checks before it is suggested and again before it runs, and is logged with who approved it and what happened.
+- **Proof, not promises.** "Saved" counts only real actions: servers removed × hours since × price. Forecast accuracy is measured against what really happened.
 
-How we build it: [CLAUDE.md](CLAUDE.md). What we build: [OPTISERVE_V2_PLAN.md](OPTISERVE_V2_PLAN.md).
+## Screenshots
+
+To add in `docs/screenshots/` (1280 px wide, light theme, taken on the live demo):
+
+1. `connect.png`: the two choices, Install the agent and Connect AWS.
+2. `connect-agent-success.png`: the install command, then "web-1 is connected".
+3. `home.png`: headline sentence, breathing live fleet, capacity weather, Copilot feed.
+4. `home-storm.png`: during the spike, a red tile, a storm in the weather strip, and an "Add 1 server now" card.
+5. `approve-progress.png`: Approved → Changing… → Done on a card.
+6. `servers.png`: the list filtered to Idle.
+7. `server-detail.png`: 60-minute chart with forecast band and capacity line, What OptiServe sees, safety checks.
+8. `activity.png`: timeline with before/after mini-charts, ₹ saved and forecast accuracy.
+9. `settings.png`: Save more ⟷ Stay safe slider, live mode and dry-run switches, prices.
+10. `phone-home.png`: Home at 390 px.
+
+## How it works
+
+```
+ Your servers                          OptiServe backend (FastAPI, one process)                 Web app (React)
+ ────────────                          ────────────────────────────────────────                 ───────────────
+ Any Linux server + agent ──every 10 s──▶ POST /api/ingest ─┐                                    Connect
+   (CPU, memory, network, disk,        (Bearer agent token,  │                                    Home: headline, live fleet,
+    requests/min from your app)         rate-limited)        ├─▶ SQLite / Postgres ──▶ Engine     capacity weather, Copilot
+                                                             │    (MetricPoint)        every min  Servers / Server detail
+ AWS account ◀──read every 1–5 min── sync_aws job ───────────┘                         profile    Activity (proof)
+   EC2 · Auto Scaling · CloudWatch     (14-day backfill on connect)                     forecast   Settings
+        ▲                                                                               plan
+        │                                                                               9 guardrails
+        └── SetDesiredCapacity / StopInstances ◀── executor ◀── Approve (a person) ◀── suggestion
+            (managed tag + DRY_RUN=false only;      re-checks guardrails, verifies the result,
+             never terminates)                      writes ActionLog, counts realized savings
+```
+
+- **Engine** (`backend/app/engine/`, pure functions, unit-tested): server status (busy / normal / idle / unhealthy), a 60-minute Holt forecast with an uncertainty band, a 7-day hour-of-week forecast once 7 days exist, servers needed = ⌈high band ÷ target busy⌉, nine guardrails (min/max servers, scale up early, step limit, cooldown, health, low data, low confidence, managed tag), and a one- or two-sentence plain explanation.
+- **Jobs** (in-process APScheduler): AWS sync, engine every minute, plan forecast hourly, action verification every 15 s, accuracy every 5 min, daily downsampling of data older than 14 days.
+- **Live mode** shortens the windows (idle after 10 min instead of 7 days, cooldown 3 min instead of 15) so a demo reacts in minutes. Same real data, and the UI shows a badge.
+- **Web app**: React + TypeScript + Tailwind, polling every 5 s on Home and Server detail.
 
 ## Quick start (local)
 
@@ -14,27 +50,45 @@ How we build it: [CLAUDE.md](CLAUDE.md). What we build: [OPTISERVE_V2_PLAN.md](O
 # Backend (Python 3.11+)
 cd backend
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
-cp .env.example .env            # set JWT_SECRET, ADMIN_EMAIL
-.venv/bin/python scripts/hash_password.py   # paste the hash into ADMIN_PASSWORD_HASH
+cp .env.example .env                          # set JWT_SECRET and ADMIN_EMAIL
+.venv/bin/python scripts/hash_password.py     # paste the printed line into .env
 .venv/bin/uvicorn app.main:app --reload --port 8000
 
 # Frontend (Node 20+), in another terminal
-cd frontend && npm install && npm run dev   # http://localhost:5173, /api is proxied to :8000
+cd frontend && npm install && npm run dev     # http://localhost:5173 (/api is proxied to :8000)
 ```
 
-Sign in, then follow **Connect** to install the agent or connect AWS.
+Or run everything in containers: `cp .env.example .env`, fill it in, then `docker compose up -d --build` (see [Deploy](#deploy)).
 
 **Tests:** `cd backend && .venv/bin/python -m pytest -q` · `cd frontend && npm run build && npm test` · demo kit: `backend/.venv/bin/python -m pytest -q demo/tests`
 
-## Repository
+## Connect your servers
 
-| Folder | What's in it |
-|---|---|
-| `backend/` | FastAPI API, engine (forecast, plan, guardrails), AWS connector, background jobs |
-| `frontend/` | React app: Connect, Home, Servers, Server detail, Activity, Settings |
-| `agent/` | single-file metrics agent + one-line systemd installer |
-| `demo/` | demo app, load generator, AWS setup guide, least-privilege IAM policy |
-| `legacy/` | v1 (hackathon) app, kept for reference only |
+Sign in. With no servers yet, OptiServe opens **Connect** by itself.
+
+**Install the agent** (any Linux server: Ubuntu 22.04+, Amazon Linux 2023; Python 3.9+):
+1. Name the server, then **Create install command**.
+2. Check the address: it must be one the server can reach (not `localhost` when the server is elsewhere).
+3. Run the copied one-liner on the server. It installs the `optiserve-agent` systemd service.
+4. The page waits for the first numbers and shows "*name* is connected" within about 10 seconds.
+
+Optional: give the agent your app's request counter (`--requests-url`, JSON `{"requests_per_min": n}`). On EC2 the agent links itself to the instance through IMDSv2, so agent and AWS data merge (memory comes only from the agent). More: [agent/README.md](agent/README.md).
+
+**Connect AWS** (read-only until you approve a change):
+1. Pick the region. Leave the keys empty when OptiServe runs on EC2 with an IAM role (recommended). Otherwise paste access keys: they stay in the backend's memory only.
+2. **Test connection** lists the instances and Auto Scaling groups it can see. Nothing is saved yet.
+3. **Connect and bring in history** saves the connection and backfills 14 days of hourly CloudWatch data, so forecasts work from day one.
+4. OptiServe can act only on groups and instances tagged `optiserve:managed=true`. Everything else gets suggestions only. The least-privilege policy is in [demo/iam_policy.json](demo/iam_policy.json); setup steps are in [demo/aws_setup.md](demo/aws_setup.md).
+
+## Security notes
+
+- **Nothing changes without a person.** Suggestions run only after **Approve**. Guardrails run again right before execution, and a change that is now unsafe is blocked with the reason. `DRY_RUN=true` is the default: it logs what would happen and changes nothing. Turning it off in Settings needs an explicit confirmation.
+- **Least privilege.** The IAM policy allows reads everywhere, and `SetDesiredCapacity`, `StopInstances` and `StartInstances` only on resources tagged `optiserve:managed=true`. Terminating instances and deleting groups are explicitly denied. OptiServe never terminates.
+- **AWS keys** are never stored in the database or logs. Prefer an IAM role. Keys pasted in Connect live only in the backend process's memory; the connection test doesn't keep them at all.
+- **Agent tokens** are random, shown once, stored only as a SHA-256 hash, revocable in Settings, and rate-limited per token on ingest.
+- **Login:** one admin (email + bcrypt hash from `.env`), JWT in an httpOnly, SameSite cookie, which becomes secure-only when `FRONTEND_ORIGIN` is `https://`. CORS allows only that origin.
+- **Secrets** live only in `.env` (git-ignored); only `.env.example` files are committed. The backend container runs as a non-root user.
+- **Exposure:** serve OptiServe over HTTPS (tunnel or ALB) and restrict port 80 to your IP and your agents' network. User-data agent tokens are readable by anyone with `ec2:DescribeInstanceAttribute`, so use a demo-only token and revoke it afterwards.
 
 ## Deploy
 
@@ -139,7 +193,7 @@ Good to know:
 - ngrok's free-plan warning page only affects browsers, not the agent.
 - Don't share the tunnel URL: anyone with it reaches your sign-in page.
 
-## Demo checklist
+## Demo script
 
 The live demo runs on real AWS: an Auto Scaling group `optiserve-demo` and an idle `forgotten-test-box`. Full commands are in [demo/aws_setup.md](demo/aws_setup.md).
 
@@ -175,3 +229,27 @@ If something stalls: **Servers → the group → Safety checks** says in plain w
 - [ ] Remove the AWS connection: **Settings → Connections → Remove**.
 - [ ] Set `DRY_RUN=true` again (**Settings**) and `LIVE_MODE=false` for everyday use.
 - [ ] In the EC2 console, check that no instances, load balancers or EBS volumes are left in the region. Keep the billing alarm.
+
+## Roadmap
+
+Next, once the v2 demo is solid:
+
+- **Ask OptiServe:** a chat that answers "why?" questions from your own data ("Why did you add a server at 18:00?").
+- **Alerts:** Slack and email for new suggestions, blocked actions and failed changes.
+- **More clouds:** GCP managed instance groups and Azure VM scale sets, the same way as AWS.
+- **Weekly plan report:** next week's capacity weather and expected cost, emailed every Monday.
+- **Scheduled scaling suggestions** from the 7-day forecast (for example, "add a server every weekday at 09:00").
+- **Teams:** more than one user, with roles (viewer / approver) and per-user approval history.
+- **Per-region pricing** from the AWS Pricing API instead of the editable default table.
+
+## Repository
+
+| Folder | What's in it |
+|---|---|
+| `backend/` | FastAPI API, engine (forecast, plan, guardrails), AWS connector, executor, background jobs |
+| `frontend/` | React app: Connect, Home, Servers, Server detail, Activity, Settings; nginx config for Docker |
+| `agent/` | single-file metrics agent + one-line systemd installer |
+| `demo/` | demo app, load generator, AWS setup guide, least-privilege IAM policy |
+| `legacy/` | v1 (hackathon) app, kept for reference only, not run |
+
+How we build it: [CLAUDE.md](CLAUDE.md). What we build: [OPTISERVE_V2_PLAN.md](OPTISERVE_V2_PLAN.md).
