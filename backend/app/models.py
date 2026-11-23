@@ -12,6 +12,13 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def as_utc(value: Optional[datetime]) -> Optional[datetime]:
+    """Return an aware UTC datetime (SQLite hands back naive UTC values)."""
+    if value is None:
+        return None
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+
 class Connection(SQLModel, table=True):
     """A data source: the OptiServe agent or an AWS account. AWS keys are never stored here."""
 

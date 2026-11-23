@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     aws_region: str = "ap-south-1"
     live_mode: bool = False
     dry_run: bool = True
+    risk: float = 0.5
+    scheduler_enabled: bool = True
     usd_inr: float = 83.0
     frontend_origin: str = "http://localhost:5173"
     ingest_rate_limit_per_min: int = 30

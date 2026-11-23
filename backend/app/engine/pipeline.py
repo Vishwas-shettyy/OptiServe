@@ -10,7 +10,7 @@ import pandas as pd
 from app.engine.common import DEFAULT_RISK, EngineParams, normalize_metrics, risk_params, utc
 from app.engine.explainer import explain
 from app.engine.forecaster import ForecastResult, band_ratio, group_demand, short_forecast
-from app.engine.guardrails import GuardContext, GuardrailResult, apply_guardrails
+from app.engine.guardrails import GuardContext, GuardOutcome, GuardrailResult, apply_guardrails
 from app.engine.planner import GroupInfo, Proposal, propose
 from app.engine.pricing import hourly_usd, monthly_inr
 from app.engine.profiler import profile_servers
@@ -69,7 +69,18 @@ def confidence(forecast: ForecastResult) -> float:
     return 0.0 if not np.isfinite(ratio) else round(float(np.clip(1.0 - ratio / 2.0, 0.0, 1.0)), 3)
 
 
-def evaluate_group(
+@dataclass
+class Prepared:
+    """The engine's view of one group at `now`, shared by evaluate_group and recheck."""
+
+    servers: pd.DataFrame
+    profiles: pd.DataFrame
+    forecast: ForecastResult
+    target_util: float
+    context: GuardContext
+
+
+def prepare(
     group: GroupInfo,
     servers: pd.DataFrame,
     metrics: pd.DataFrame,
@@ -77,9 +88,8 @@ def evaluate_group(
     params: EngineParams,
     risk: float = DEFAULT_RISK,
     last_action_at: Optional[datetime] = None,
-    usd_inr: float = 83.0,
-) -> Decision:
-    """Run the full engine for one group's running servers and their MetricPoint rows."""
+) -> Prepared:
+    """Profile the group's running servers and forecast its demand."""
     now_ts = utc(now)
     srv = servers
     if "group_id" in srv.columns:
@@ -93,14 +103,35 @@ def evaluate_group(
     forecast = short_forecast(group_demand(m), now_ts, params, z)
     span = (now_ts - m["ts"].min()).to_pytimedelta() if len(m) else timedelta(0)
     ctx = GuardContext(group, now_ts, params, target_util, forecast, span, profiles, last_action_at)
-    outcome = apply_guardrails(propose(group, profiles, forecast, target_util), ctx)
+    return Prepared(srv, profiles, forecast, target_util, ctx)
+
+
+def recheck(prepared: Prepared, proposal: Proposal) -> GuardOutcome:
+    """Run the nine guardrails again on an already-approved proposal."""
+    return apply_guardrails(proposal, prepared.context)
+
+
+def evaluate_group(
+    group: GroupInfo,
+    servers: pd.DataFrame,
+    metrics: pd.DataFrame,
+    now: datetime,
+    params: EngineParams,
+    risk: float = DEFAULT_RISK,
+    last_action_at: Optional[datetime] = None,
+    usd_inr: float = 83.0,
+) -> Decision:
+    """Run the full engine for one group's running servers and their MetricPoint rows."""
+    pr = prepare(group, servers, metrics, now, params, risk, last_action_at)
+    ctx, forecast = pr.context, pr.forecast
+    outcome = apply_guardrails(propose(group, pr.profiles, forecast, pr.target_util), ctx)
     p = outcome.proposal
-    saving = savings_month_inr(p, srv, usd_inr)
-    reason = explain(p, forecast=forecast, now=now_ts, target_util=target_util, params=params,
-                     data_span=span, savings_inr=saving, hold_rule=outcome.hold_rule)
+    saving = savings_month_inr(p, pr.servers, usd_inr)
+    reason = explain(p, forecast=forecast, now=ctx.now, target_util=pr.target_util, params=params,
+                     data_span=ctx.data_span, savings_inr=saving, hold_rule=outcome.hold_rule)
     return Decision(
         group_id=group.group_id, kind=p.kind, from_count=p.from_count, to_count=p.to_count, server_id=p.server_id,
         reason=reason, savings_month_inr=saving, confidence=confidence(forecast), status=outcome.status,
         blocked_reason=outcome.blocked_reason, executable=outcome.executable and outcome.status != "blocked",
-        guardrails=outcome.results, forecast=forecast, profiles=profiles,
+        guardrails=outcome.results, forecast=forecast, profiles=pr.profiles,
     )
