@@ -1,0 +1,59 @@
+# OptiServe web: serves the built app and forwards /api to the backend.
+# ${BACKEND_URL} is filled in at container start (nginx image templates). Nginx's own $variables are left alone.
+
+# Keep the original scheme when a tunnel or load balancer in front already set it (for secure cookies).
+map $http_x_forwarded_proto $forwarded_proto {
+    default $http_x_forwarded_proto;
+    ""      $scheme;
+}
+
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    server_tokens off;
+
+    # Agent batches (up to 10 minutes of buffered samples) and JSON bodies are small.
+    client_max_body_size 2m;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    include /etc/nginx/snippets/security-headers.conf;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location /api/ {
+        # Docker's DNS, re-resolved every 10 s, so a restarted backend container is found again.
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $backend ${BACKEND_URL};
+        proxy_pass $backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+        # Connecting AWS backfills 14 days of history in one request.
+        proxy_read_timeout 300s;
+        proxy_send_timeout 60s;
+    }
+
+    # Hashed build files never change: cache them for a year.
+    location /assets/ {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # Single-page app: unknown paths get index.html, which is never cached.
+    location / {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ /index.html;
+    }
+}

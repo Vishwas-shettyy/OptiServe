@@ -1,0 +1,76 @@
+# OptiServe: backend (FastAPI + jobs) and web (nginx serving the app, /api forwarded to the backend).
+#   cp .env.example .env   # then fill it in
+#   docker compose up -d --build
+# Postgres instead of SQLite (optional):
+#   set DATABASE_URL and POSTGRES_PASSWORD in .env, then: docker compose --profile postgres up -d --build
+name: optiserve
+
+services:
+  backend:
+    build: ./backend
+    image: optiserve-backend:local
+    env_file: .env
+    environment:
+      # SQLite on the optiserve-data volume unless .env sets a Postgres URL.
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/optiserve.db}
+    volumes:
+      - optiserve-data:/data
+    expose:
+      - "8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4).status == 200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false # only when the postgres profile is on
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    build: ./frontend
+    image: optiserve-frontend:local
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    depends_on:
+      backend:
+        condition: service_healthy
+    logging: *logging
+
+  postgres:
+    image: postgres:17-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: optiserve
+      POSTGRES_USER: optiserve
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - optiserve-pg:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U optiserve -d optiserve"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+    logging: *logging
+
+volumes:
+  optiserve-data:
+  optiserve-pg:
